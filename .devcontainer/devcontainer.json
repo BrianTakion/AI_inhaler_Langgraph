@@ -1,0 +1,28 @@
+{
+  "name": "py312-slim (WSL minimal + Jupyter)",
+  "image": "python:3.12-slim",
+  "remoteUser": "root",
+  "workspaceFolder": "/workspace",
+  "runArgs": ["--init"],
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind",
+    "source=pipcache,target=/root/.cache/pip,type=volume"
+  ],
+  "postCreateCommand": "set -eux; apt-get update && apt-get install -y --no-install-recommends git libgl1 libglib2.0-0 openssh-client && rm -rf /var/lib/apt/lists/*; git config --global user.name \"$GIT_USER_NAME\"; git config --global user.email \"$GIT_USER_EMAIL\"; git config --global init.defaultBranch main; python -m pip install --upgrade pip; if [ -f /workspace/requirements.txt ]; then pip install -r /workspace/requirements.txt; fi; python -m ipykernel install --user --name=devcontainer-py312 --display-name='Python (devcontainer)';",
+  "features": {},
+  "containerEnv": {
+    "PYTHONDONTWRITEBYTECODE": "1",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-toolsai.jupyter"
+      ]
+    }
+  },
+  "forwardPorts": [8888],
+  "runEnvFile": ".devcontainer/.env"
+}
