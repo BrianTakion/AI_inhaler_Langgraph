@@ -1,4 +1,4 @@
-# AI Inhaler LangGraph
+# AI video analyzer to Inhaler using LangGraph
 
 LangGraph 기반 Multi-Agent 흡입기 비디오 분석 시스템
 
@@ -10,8 +10,8 @@ LangGraph 기반 Multi-Agent 흡입기 비디오 분석 시스템
 
 ```
 ┌─────────────────────────────────────┐
-│   LangGraph Orchestrator             │
-│   (Workflow Management)              │
+│   LangGraph Orchestrator            │
+│   (Workflow Management)             │
 └─────────────────────────────────────┘
               │
         ┌─────┴─────┬─────────┬─────────┐
