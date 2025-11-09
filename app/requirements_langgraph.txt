@@ -1,0 +1,23 @@
+# LangGraph Multi-Agent 흡입기 비디오 분석기 패키지 요구사항
+
+# LangGraph 및 LangChain
+langgraph>=0.0.20
+langchain>=0.1.0
+langchain-openai>=0.0.5
+
+# OpenAI
+openai>=1.0.0
+
+# 비디오 처리
+opencv-python>=4.8.0
+numpy>=1.24.0
+
+# 시각화
+plotly>=5.18.0
+
+# 환경 변수 관리
+python-dotenv>=1.0.0
+
+# 유틸리티
+typing-extensions>=4.9.0
+

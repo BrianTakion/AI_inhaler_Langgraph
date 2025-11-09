@@ -7,218 +7,95 @@ class PromptBank:
         self.search_reference_time = {
             'inhalerIN': {
                 'action': 'Is the inhaler visible at any point throughout the images?',
-                'reference_time': 0
+                'reference_time': 0.0
             },
             'faceONinhaler': {
                 'action': 'Is the person holding an object to the mouth as if using an inhaler?',
-                'reference_time': 0
+                'reference_time': 0.0
             },
             'inhalerOUT': {
                 'action': 'Is the inhaler invisible at any point throughout the images?',
-                'reference_time': 0
+                'reference_time': 0.0
             }
         }
 
         self.check_action_step_common = {
             'sit_stand': {
                 'action': 'Is the user sitting or standing upright?(Consider the user to be upright, even if they are sitting with a slight forward lean.)',
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'remove_cover': {
                 'action': 'Is the user removing the mouthpiece cover?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'inspect_mouthpiece': {
                 'action': 'Is the user inspecting the mouthpiece for foreign substances?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'shake_inhaler': {
                 'action': 'Is the user shaking the inhaler well?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'hold_inhaler': {
                 'action': 'Is the user holding the inhaler upright?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'load_dose': {
                 'action': 'Is the user removing the mouthpiece cover to load the medication?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'exhale_before': {
                 'action': 'Is the user exhaling away from the inhaler?(Consider the user to be exhaling away from the inhaler if they are not facing it.)', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'seal_lips': {
                 'action': 'Is the user placing their mouth on the mouthpiece of the inhaler?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'inhale_deeply': {
                 'action': 'Is the user inhaling from the inhaler?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'remove_inhaler': {
                 'action': 'Is the user removing the inhaler from their mouth while holding their breath?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'hold_breath': {
                 'action': 'Is the user holding their breath?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'exhale_after': {
                 'action': 'Is the user exhaling away from the inhaler?(Consider the user to be exhaling away from the inhaler if they are not facing it.)', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             },
             'replace_cover': {
                 'action': 'Is the user replacing the mouthpiece cover?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            }
-        }
-
-        self.check_action_step_category1 = {
-            'sit_stand': {
-                'action': 'Is the user sitting or standing upright?(Consider the user to be upright, even if they are sitting with a slight forward lean.)',
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'remove_cover': {
-                'action': 'Is the user removing the mouthpiece cover?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'inspect_mouthpiece': {
-                'action': 'Is the user inspecting the mouthpiece for foreign substances?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'shake_inhaler': {
-                'action': 'Is the user shaking the inhaler well?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'hold_inhaler': {
-                'action': 'Is the user holding the inhaler upright?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'load_dose': {
-                'action': 'Is the user removing the mouthpiece cover to load the medication?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'exhale_before': {
-                'action': 'Is the user exhaling away from the inhaler?(Consider the user to be exhaling away from the inhaler if they are not facing it.)', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'seal_lips': {
-                'action': 'Is the user placing their mouth on the mouthpiece of the inhaler?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'inhale_deeply': {
-                'action': 'Is the user inhaling from the inhaler?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'remove_inhaler': {
-                'action': 'Is the user removing the inhaler from their mouth while holding their breath?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'hold_breath': {
-                'action': 'Is the user holding their breath?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'exhale_after': {
-                'action': 'Is the user exhaling away from the inhaler?(Consider the user to be exhaling away from the inhaler if they are not facing it.)', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'replace_cover': {
-                'action': 'Is the user replacing the mouthpiece cover?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            }
-        }
-
-        self.check_action_step_category2 = {
-            'sit_stand': {
-                'action': 'Is the user sitting or standing upright?(Consider the user to be upright, even if they are sitting with a slight forward lean.)',
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'remove_cover': {
-                'action': 'Is the user removing the mouthpiece cover?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'inspect_mouthpiece': {
-                'action': 'Is the user inspecting the mouthpiece for foreign substances?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'shake_inhaler': {
-                'action': 'Is the user shaking the inhaler well?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'hold_inhaler': {
-                'action': 'Is the user holding the inhaler upright?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'load_dose': {
-                'action': 'Is the user removing the mouthpiece cover to load the medication?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'exhale_before': {
-                'action': 'Is the user exhaling away from the inhaler?(Consider the user to be exhaling away from the inhaler if they are not facing it.)', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'seal_lips': {
-                'action': 'Is the user placing their mouth on the mouthpiece of the inhaler?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'inhale_deeply': {
-                'action': 'Is the user inhaling from the inhaler?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'remove_inhaler': {
-                'action': 'Is the user removing the inhaler from their mouth while holding their breath?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'hold_breath': {
-                'action': 'Is the user holding their breath?', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'exhale_after': {
-                'action': 'Is the user exhaling away from the inhaler?(Consider the user to be exhaling away from the inhaler if they are not facing it.)', 
-                'timeANDscore': [],
-                'confidence_score': []
-            },
-            'replace_cover': {
-                'action': 'Is the user replacing the mouthpiece cover?', 
-                'timeANDscore': [],
+                'time': [],
+                'score': [],
                 'confidence_score': []
             }
         }
@@ -237,7 +114,7 @@ class PromptBank:
         # 1. 기준 시간 저장
         self.search_reference_time[reference_key]['reference_time'] = reference_time
         
-        # 2. Q&A 결과를 scoreANDtime 형태로 저장
+        # 2. Q&A 결과를 time과 score로 분리하여 저장
         for q_key, action_key in q_mapping.items():
             if q_key in q_answers_accumulated:
                 for answer_data in q_answers_accumulated[q_key]:
@@ -252,7 +129,8 @@ class PromptBank:
                     # 시간값을 float로 변환하여 저장
                     time_val = float(time_val)
                     score = 1 if answer_str == 'YES' else 0
-                    self.check_action_step_common[action_key]['timeANDscore'].append((time_val, score))
+                    self.check_action_step_common[action_key]['time'].append(time_val)
+                    self.check_action_step_common[action_key]['score'].append(score)
                     
                     # confidence score 저장
                     if confidence is not None:

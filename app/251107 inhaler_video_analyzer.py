@@ -512,12 +512,12 @@ all_times = []
 for v in promptBank.search_reference_time.values():
     if v['reference_time'] >= 0:
         all_times.append(float(v['reference_time']))
-# timeANDscore에서 시간 수집
+# time에서 시간 수집
 for v in promptBank.check_action_step_common.values():
-    if v['timeANDscore']:
-        for time_score in v['timeANDscore']:
+    if v['time']:
+        for time_val in v['time']:
             # 시간값을 float로 변환하여 추가
-            all_times.append(float(time_score[0]))
+            all_times.append(float(time_val))
 
 # reference_time에 파란색 점과 수직선 그리기
 reference_times = []
@@ -580,15 +580,15 @@ for key, value in promptBank.search_reference_time.items():
 # check_action_step_common 데이터 출력
 print("--- Action Step 데이터 ---")
 for key, value in promptBank.check_action_step_common.items():
-    if value['timeANDscore']:  # 데이터가 있는 경우만
+    if value['time']:  # 데이터가 있는 경우만
         print(f"{key}: {value['action']}")
-        print(f"       {value['timeANDscore']}")
+        print(f"       time: {value['time']}")
+        print(f"       score: {value['score']}")
         if value['confidence_score']:
             print(f"       confidence: {value['confidence_score']}")
         y_pos = y_positions[key]
-        for time_score in value['timeANDscore']:
-            time_val = float(time_score[0])  # 시간값을 float로 변환
-            score_val = time_score[1]
+        for time_val, score_val in zip(value['time'], value['score']):
+            time_val = float(time_val)  # 시간값을 float로 변환
             
             # 해당 시간의 confidence score 찾기
             confidence_val = confidence_dict.get(key, {}).get(time_val, 0.5)  # 기본값 0.5
@@ -693,6 +693,4 @@ print(f"{video_name=} Time: {play_time} sec, Length: {frame_count} frames, Resol
 
 
 print("Done !")
-#TODO action에 흡입기를 물고 있는가 ? 추가 여부 검토
-#TODO event 통계신호처리로 최종 Checklist 결과 출력
 
