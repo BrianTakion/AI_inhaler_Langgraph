@@ -212,7 +212,7 @@ class ReporterAgent:
                     mode='markers',
                     marker=dict(
                         size=10,
-                        color=action_confidence_filled,
+                        color=action_confidence_filled,  # Confidence 값으로 내부 색상 설정
                         colorscale='Greens',
                         cmin=0.0,
                         cmax=1.0,
@@ -224,7 +224,13 @@ class ReporterAgent:
                             len=0.4,
                             thickness=15
                         ),
-                        line=dict(width=1, color='darkgreen')
+                        line=dict(
+                            width=1,
+                            color=action_confidence_filled,  # 테두리도 Confidence로 설정
+                            colorscale='Greens',
+                            cmin=0.0,
+                            cmax=1.0
+                        )
                     ),
                     name='Action Steps (Score=1)',
                     showlegend=False,
@@ -240,11 +246,11 @@ class ReporterAgent:
                     mode='markers',
                     marker=dict(
                         size=10,
-                        color=action_confidence_empty,
+                        color=action_confidence_empty,  # Confidence 값으로 내부 색상 설정
                         colorscale='Reds',
                         cmin=0.0,
                         cmax=1.0,
-                        symbol='circle-open',
+                        symbol='circle',  # 채워진 원으로 변경 (내부 색상 보이도록)
                         colorbar=dict(
                             title="Confidence<br>(Score=0)",
                             x=1.02,
@@ -252,7 +258,13 @@ class ReporterAgent:
                             len=0.4,
                             thickness=15
                         ),
-                        line=dict(width=2)
+                        line=dict(
+                            width=1,  # 테두리 두께를 Score=1과 동일하게 조정
+                            color=action_confidence_empty,  # 테두리도 Confidence로 설정
+                            colorscale='Reds',
+                            cmin=0.0,
+                            cmax=1.0
+                        )
                     ),
                     name='Action Steps (Score=0)',
                     showlegend=False,
