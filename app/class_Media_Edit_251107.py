@@ -38,7 +38,7 @@ class MediaEdit:
         video_name = os.path.splitext(os.path.basename(video_path))[0]  # 파일명
         capture = self._open_video(video_path)
         if capture is None:
-            return None, None, None, None, None
+            return None, None, None, None, None, None
         
         fps = capture.get(cv2.CAP_PROP_FPS)  # 프레임 속도 (FPS)
         total_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))  # 전체 프레임 수

@@ -24,10 +24,16 @@ from graph_workflow import create_workflow
 def main():
     """메인 실행 함수"""
     
-    # LLM 초기화
-    llm_name = "gpt-4o"
-    print(f"LLM 모델 초기화: {llm_name}")
-    mllm = mLLM.multimodalLLM(llm_name=llm_name, api_key=api_key)
+    # LLM 초기화 (두 개의 모델)
+    llm_name_4o = "gpt-4o"
+    llm_name_4o_mini = "gpt-4o-mini"
+    
+    print(f"LLM 모델 초기화:")
+    print(f"  - {llm_name_4o}")
+    print(f"  - {llm_name_4o_mini}")
+    
+    mllm_4o = mLLM.multimodalLLM(llm_name=llm_name_4o, api_key=api_key)
+    mllm_4o_mini = mLLM.multimodalLLM(llm_name=llm_name_4o_mini, api_key=api_key)
     
     # 비디오 파일 경로 설정
     base_dir = r"/workspace/app/video_source"
@@ -38,6 +44,7 @@ def main():
         "SMI_03": base_dir + r"/SMI/03_SMI_full.mov",
         "DPI_01": base_dir + r"/DPI/01_Ellipta_full.mov",
     }
+
     
     # 사용할 비디오 선택
     video_path = video_options["pMDI_10"]
@@ -47,12 +54,12 @@ def main():
     # 초기 상태 생성
     initial_state = create_initial_state(
         video_path=video_path,
-        llm_name=llm_name,
+        llm_name=f"{llm_name_4o} & {llm_name_4o_mini}",
         api_key=api_key
     )
     
-    # 워크플로우 생성
-    workflow = create_workflow(mllm)
+    # 워크플로우 생성 (두 개의 LLM 인스턴스 전달)
+    workflow = create_workflow(mllm_4o, mllm_4o_mini)
     
     # 워크플로우 실행
     final_state = workflow.run(initial_state)

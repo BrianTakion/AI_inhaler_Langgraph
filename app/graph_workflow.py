@@ -9,7 +9,8 @@ Multi-Agent 워크플로우를 구성합니다.
 from langgraph.graph import StateGraph, END
 from agents.state import VideoAnalysisState
 from agents.video_processor_agent import VideoProcessorAgent
-from agents.video_analyzer_agent import VideoAnalyzerAgent
+from agents.video_analyzer_agent_4o import VideoAnalyzerAgent4o
+from agents.video_analyzer_agent_4o_mini import VideoAnalyzerAgent4oMini
 from agents.reporter_agent import ReporterAgent
 
 
@@ -19,22 +20,27 @@ class InhalerAnalysisWorkflow:
     
     워크플로우:
     1. VideoProcessor: 비디오 메타데이터 추출
-    2. VideoAnalyzer: 기준 시점 탐지 및 행동 단계 분석 (통합)
-    3. Reporter: 결과 취합 및 시각화
+    2. VideoAnalyzer (병렬):
+       - VideoAnalyzer4o: GPT-4o를 사용한 분석
+       - VideoAnalyzer4oMini: GPT-4o-mini를 사용한 분석
+    3. Reporter: 결과 취합 및 평균값 시각화
     """
     
-    def __init__(self, mllm):
+    def __init__(self, mllm_4o, mllm_4o_mini):
         """
         워크플로우 초기화
         
         Args:
-            mllm: Multimodal LLM 인스턴스
+            mllm_4o: GPT-4o Multimodal LLM 인스턴스
+            mllm_4o_mini: GPT-4o-mini Multimodal LLM 인스턴스
         """
-        self.mllm = mllm
+        self.mllm_4o = mllm_4o
+        self.mllm_4o_mini = mllm_4o_mini
         
         # Agent 초기화
         self.video_processor = VideoProcessorAgent()
-        self.video_analyzer = VideoAnalyzerAgent(mllm, self.video_processor)
+        self.video_analyzer_4o = VideoAnalyzerAgent4o(mllm_4o, self.video_processor)
+        self.video_analyzer_4o_mini = VideoAnalyzerAgent4oMini(mllm_4o_mini, self.video_processor)
         self.reporter = ReporterAgent()
         
         # 워크플로우 그래프 생성
@@ -42,20 +48,25 @@ class InhalerAnalysisWorkflow:
         self.app = self.workflow.compile()
     
     def _create_workflow(self):
-        """LangGraph 워크플로우 생성"""
+        """LangGraph 워크플로우 생성 (병렬 처리)"""
         
         # StateGraph 생성
         workflow = StateGraph(VideoAnalysisState)
         
         # 노드 추가
         workflow.add_node("video_processor", self._video_processor_node)
-        workflow.add_node("video_analyzer", self._video_analyzer_node)
+        workflow.add_node("video_analyzer_4o", self._video_analyzer_4o_node)
+        workflow.add_node("video_analyzer_4o_mini", self._video_analyzer_4o_mini_node)
         workflow.add_node("reporter", self._reporter_node)
         
         # 엣지 추가 (워크플로우 순서)
         workflow.set_entry_point("video_processor")
-        workflow.add_edge("video_processor", "video_analyzer")
-        workflow.add_edge("video_analyzer", "reporter")
+        # 병렬 실행: video_processor -> 두 analyzer가 병렬로 실행
+        workflow.add_edge("video_processor", "video_analyzer_4o")
+        workflow.add_edge("video_processor", "video_analyzer_4o_mini")
+        # 두 analyzer 결과를 reporter로 전달
+        workflow.add_edge("video_analyzer_4o", "reporter")
+        workflow.add_edge("video_analyzer_4o_mini", "reporter")
         workflow.add_edge("reporter", END)
         
         return workflow
@@ -67,12 +78,19 @@ class InhalerAnalysisWorkflow:
         print("="*50)
         return self.video_processor.process(state)
     
-    def _video_analyzer_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
-        """비디오 분석 노드 (기준 시점 탐지 + 행동 분석 통합)"""
+    def _video_analyzer_4o_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
+        """비디오 분석 노드 - GPT-4o"""
         print("\n" + "="*50)
-        print("=== 2. Video Analyzer Agent 실행 ===")
+        print("=== 2-1. Video Analyzer Agent (GPT-4o) 실행 ===")
         print("="*50)
-        return self.video_analyzer.process(state)
+        return self.video_analyzer_4o.process(state)
+    
+    def _video_analyzer_4o_mini_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
+        """비디오 분석 노드 - GPT-4o-mini"""
+        print("\n" + "="*50)
+        print("=== 2-2. Video Analyzer Agent (GPT-4o-mini) 실행 ===")
+        print("="*50)
+        return self.video_analyzer_4o_mini.process(state)
     
     def _reporter_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
         """리포트 생성 노드"""
@@ -127,15 +145,16 @@ class InhalerAnalysisWorkflow:
             print(f"워크플로우 시각화 실패: {e}")
 
 
-def create_workflow(mllm) -> InhalerAnalysisWorkflow:
+def create_workflow(mllm_4o, mllm_4o_mini) -> InhalerAnalysisWorkflow:
     """
     워크플로우 생성 헬퍼 함수
     
     Args:
-        mllm: Multimodal LLM 인스턴스
+        mllm_4o: GPT-4o Multimodal LLM 인스턴스
+        mllm_4o_mini: GPT-4o-mini Multimodal LLM 인스턴스
         
     Returns:
         InhalerAnalysisWorkflow 인스턴스
     """
-    return InhalerAnalysisWorkflow(mllm)
+    return InhalerAnalysisWorkflow(mllm_4o, mllm_4o_mini)
 

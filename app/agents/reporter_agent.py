@@ -27,7 +27,7 @@ class ReporterAgent:
     
     def process(self, state: VideoAnalysisState) -> VideoAnalysisState:
         """
-        최종 리포트 생성
+        최종 리포트 생성 (두 agent의 평균값 사용)
         
         Args:
             state: 현재 상태
@@ -39,14 +39,20 @@ class ReporterAgent:
             state["agent_logs"].append({
                 "agent": self.name,
                 "action": "start_reporting",
-                "message": "리포트 생성 시작"
+                "message": "리포트 생성 시작 (평균값 계산)"
             })
+            
+            # 두 agent의 결과를 평균내기
+            print(f"\n[{self.name}] 두 Agent 결과의 평균값 계산 중...")
+            avg_data = self._compute_average(state)
+            state["reference_times_avg"] = avg_data["reference_times_avg"]
+            state["promptbank_data_avg"] = avg_data["promptbank_data_avg"]
             
             # 최종 리포트 생성
             final_report = self._create_final_report(state)
             state["final_report"] = final_report
             
-            # 시각화 생성
+            # 시각화 생성 (평균값 사용)
             visualization_fig = self._create_visualization(state)
             
             # 시각화 표시
@@ -62,7 +68,7 @@ class ReporterAgent:
                 "message": "리포트 생성 완료"
             })
             
-            print(f"\n[{self.name}] 최종 리포트 생성 완료")
+            print(f"\n[{self.name}] 최종 리포트 생성 완료 (평균값 기반)")
             self._print_summary(final_report)
             
         except Exception as e:
@@ -75,15 +81,149 @@ class ReporterAgent:
         
         return state
     
+    def _compute_average(self, state: VideoAnalysisState) -> dict:
+        """
+        두 Agent의 결과를 평균내기
+        
+        Args:
+            state: 현재 상태
+            
+        Returns:
+            평균값 딕셔너리
+        """
+        # Reference times 평균
+        ref_times_4o = state.get("reference_times_4o", {})
+        ref_times_4o_mini = state.get("reference_times_4o_mini", {})
+        
+        reference_times_avg = {}
+        for key in set(list(ref_times_4o.keys()) + list(ref_times_4o_mini.keys())):
+            val_4o = ref_times_4o.get(key, 0)
+            val_4o_mini = ref_times_4o_mini.get(key, 0)
+            reference_times_avg[key] = round((val_4o + val_4o_mini) / 2.0, 1)
+        
+        # PromptBank 데이터 평균
+        promptbank_4o = state.get("promptbank_data_4o", {})
+        promptbank_4o_mini = state.get("promptbank_data_4o_mini", {})
+        
+        # search_reference_time 평균
+        search_ref_4o = promptbank_4o.get("search_reference_time", {})
+        search_ref_4o_mini = promptbank_4o_mini.get("search_reference_time", {})
+        
+        search_reference_time_avg = {}
+        for key in set(list(search_ref_4o.keys()) + list(search_ref_4o_mini.keys())):
+            ref_4o = search_ref_4o.get(key, {})
+            ref_4o_mini = search_ref_4o_mini.get(key, {})
+            
+            avg_ref_time = round(
+                (ref_4o.get('reference_time', 0) + ref_4o_mini.get('reference_time', 0)) / 2.0, 
+                1
+            )
+            
+            search_reference_time_avg[key] = {
+                'action': ref_4o.get('action', ref_4o_mini.get('action', '')),
+                'reference_time': avg_ref_time
+            }
+        
+        # check_action_step_common 평균
+        check_4o = promptbank_4o.get("check_action_step_common", {})
+        check_4o_mini = promptbank_4o_mini.get("check_action_step_common", {})
+        
+        check_action_step_common_avg = {}
+        for action_key in set(list(check_4o.keys()) + list(check_4o_mini.keys())):
+            action_4o = check_4o.get(action_key, {})
+            action_4o_mini = check_4o_mini.get(action_key, {})
+            
+            # time과 score를 합치고 평균 계산
+            time_4o = action_4o.get('time', [])
+            score_4o = action_4o.get('score', [])
+            conf_4o = dict(action_4o.get('confidence_score', []))
+            
+            time_4o_mini = action_4o_mini.get('time', [])
+            score_4o_mini = action_4o_mini.get('score', [])
+            conf_4o_mini = dict(action_4o_mini.get('confidence_score', []))
+            
+            # 모든 시간값 수집
+            all_times = set(time_4o + time_4o_mini)
+            
+            time_avg = []
+            score_avg = []
+            confidence_avg = []
+            
+            for t in sorted(all_times):
+                # 각 시간에 대한 score와 confidence 찾기
+                scores = []
+                confidences = []
+                
+                if t in time_4o:
+                    idx = time_4o.index(t)
+                    scores.append(score_4o[idx])
+                    confidences.append(conf_4o.get(t, 0.5))
+                
+                if t in time_4o_mini:
+                    idx = time_4o_mini.index(t)
+                    scores.append(score_4o_mini[idx])
+                    confidences.append(conf_4o_mini.get(t, 0.5))
+                
+                # 평균 계산
+                avg_score = sum(scores) / len(scores) if scores else 0
+                avg_confidence = sum(confidences) / len(confidences) if confidences else 0.5
+                
+                # 반올림하여 0 또는 1로 변환
+                time_avg.append(t)
+                score_avg.append(1 if avg_score >= 0.5 else 0)
+                confidence_avg.append((t, round(avg_confidence, 2)))
+            
+            check_action_step_common_avg[action_key] = {
+                'action': action_4o.get('action', action_4o_mini.get('action', '')),
+                'time': time_avg,
+                'score': score_avg,
+                'confidence_score': confidence_avg
+            }
+        
+        promptbank_data_avg = {
+            "search_reference_time": search_reference_time_avg,
+            "check_action_step_common": check_action_step_common_avg
+        }
+        
+        return {
+            "reference_times_avg": reference_times_avg,
+            "promptbank_data_avg": promptbank_data_avg
+        }
+    
     def _create_final_report(self, state: VideoAnalysisState) -> dict:
-        """최종 리포트 생성"""
+        """최종 리포트 생성 (평균값 기반)"""
         video_info = state["video_info"]
-        reference_times = state["reference_times"]
-        action_analysis = state["action_analysis_results"]
+        reference_times_avg = state.get("reference_times_avg", {})
+        promptbank_data_avg = state.get("promptbank_data_avg", {})
+        
+        # 평균 데이터로부터 action_analysis 생성
+        action_analysis = {}
+        if promptbank_data_avg:
+            check_action_step_common = promptbank_data_avg.get("check_action_step_common", {})
+            for action_key, action_data in check_action_step_common.items():
+                if action_data.get('time'):
+                    yes_times = [
+                        time_val for time_val, score_val in zip(action_data['time'], action_data['score'])
+                        if score_val == 1
+                    ]
+                    no_times = [
+                        time_val for time_val, score_val in zip(action_data['time'], action_data['score'])
+                        if score_val == 0
+                    ]
+                    confidence_info = {
+                        time: conf for time, conf in action_data.get('confidence_score', [])
+                    }
+                    action_analysis[action_key] = {
+                        'action_description': action_data['action'],
+                        'detected_times': yes_times,
+                        'not_detected_times': no_times,
+                        'confidence': confidence_info,
+                        'total_detections': len(yes_times)
+                    }
         
         return {
             "video_info": video_info,
-            "reference_times": reference_times,
+            "reference_times": reference_times_avg,
             "action_analysis": action_analysis,
             "summary": {
                 "total_actions_detected": sum(
@@ -95,14 +235,18 @@ class ReporterAgent:
         }
     
     def _create_visualization(self, state: VideoAnalysisState):
-        """Plotly 시각화 생성"""
+        """Plotly 시각화 생성 (평균값 기반)"""
         try:
-            promptbank_data = state["promptbank_data"]
-            video_info = state["video_info"]
-            llm_name = state.get("llm_name", "gpt-4o")
+            promptbank_data_avg = state.get("promptbank_data_avg")
+            if not promptbank_data_avg:
+                print("평균 PromptBank 데이터가 없습니다.")
+                return None
             
-            search_reference_time = promptbank_data["search_reference_time"]
-            check_action_step_common = promptbank_data["check_action_step_common"]
+            video_info = state["video_info"]
+            llm_name = "gpt-4o & gpt-4o-mini (Average)"
+            
+            search_reference_time = promptbank_data_avg["search_reference_time"]
+            check_action_step_common = promptbank_data_avg["check_action_step_common"]
             
             # 모든 키와 y 위치 설정
             reference_keys = list(search_reference_time.keys())
