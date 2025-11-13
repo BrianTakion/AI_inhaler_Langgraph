@@ -2,8 +2,8 @@
 # coding: utf-8
 
 """
-Reference Detector Agent
-기준 시점 탐지를 전담합니다 (inhalerIN, faceONinhaler, inhalerOUT).
+Video Analyzer Agent
+기준 시점 탐지와 행동 단계 분석을 통합하여 수행합니다.
 """
 
 import sys
@@ -16,23 +16,31 @@ from .state import VideoAnalysisState
 from .video_processor_agent import VideoProcessorAgent
 
 
-class ReferenceDetectorAgent:
+class VideoAnalyzerAgent:
     """
-    기준 시점 탐지 전담 Agent
-    - inhalerIN: 흡입기가 처음 나타나는 시각
-    - faceONinhaler: 흡입기를 입에 대는 시각
-    - inhalerOUT: 흡입기가 화면에서 사라지는 시각
+    비디오 분석 통합 Agent
+    
+    주요 기능:
+    1. 기준 시점 탐지
+       - inhalerIN: 흡입기가 처음 나타나는 시각
+       - faceONinhaler: 흡입기를 입에 대는 시각
+       - inhalerOUT: 흡입기가 화면에서 사라지는 시각
+    
+    2. 행동 단계 분석
+       - 개별 행동 인식
+       - 신뢰도 평가
+       - 시간대별 행동 매핑
     """
     
     def __init__(self, mllm, video_processor: VideoProcessorAgent):
         self.mllm = mllm
         self.video_processor = video_processor
-        self.name = "ReferenceDetectorAgent"
+        self.name = "VideoAnalyzerAgent"
         self.promptbank = PB.PromptBank()
     
     def process(self, state: VideoAnalysisState) -> VideoAnalysisState:
         """
-        모든 기준 시점을 순차적으로 탐지
+        기준 시점 탐지 및 행동 단계 분석을 수행
         
         Args:
             state: 현재 상태
@@ -47,9 +55,14 @@ class ReferenceDetectorAgent:
             
             state["agent_logs"].append({
                 "agent": self.name,
-                "action": "start_detection",
-                "message": "기준 시점 탐지 시작"
+                "action": "start_analysis",
+                "message": "비디오 분석 시작 (기준 시점 탐지 + 행동 분석)"
             })
+            
+            # ========================================
+            # Part 1: 기준 시점 탐지
+            # ========================================
+            print(f"\n[{self.name}] 기준 시점 탐지 시작...")
             
             # 1. inhalerIN 탐지
             print(f"\n[{self.name}] inhalerIN 탐지 시작...")
@@ -110,22 +123,49 @@ class ReferenceDetectorAgent:
             print(f"[{self.name}] inhalerOUT 탐지 완료: {ref_time_out}초")
             
             # PromptBank 데이터 저장
-            state["promptbank_data"] = {
+            promptbank_data = {
                 "search_reference_time": self.promptbank.search_reference_time,
                 "check_action_step_common": self.promptbank.check_action_step_common
             }
-            
-            # 상태 업데이트
-            state["status"] = "reference_detected"
+            state["promptbank_data"] = promptbank_data
             
             state["agent_logs"].append({
                 "agent": self.name,
-                "action": "detection_complete",
-                "message": f"모든 기준 시점 탐지 완료: IN={ref_time_in}초, FACE={ref_time_face}초, OUT={ref_time_out}초"
+                "action": "reference_detection_complete",
+                "message": f"기준 시점 탐지 완료: IN={ref_time_in}초, FACE={ref_time_face}초, OUT={ref_time_out}초"
+            })
+            
+            # ========================================
+            # Part 2: 행동 단계 분석
+            # ========================================
+            print(f"\n[{self.name}] 행동 단계 분석 시작...")
+            
+            if promptbank_data:
+                # 행동 분석 결과 생성
+                action_summary = self._create_action_summary(promptbank_data)
+                
+                state["action_analysis_results"] = action_summary
+                state["status"] = "analysis_complete"
+                
+                state["agent_logs"].append({
+                    "agent": self.name,
+                    "action": "action_analysis_complete",
+                    "message": f"행동 단계 분석 완료: {len(action_summary)}개 행동 인식"
+                })
+                
+                print(f"[{self.name}] 행동 단계 분석 완료: {len(action_summary)}개 행동")
+            else:
+                raise ValueError("PromptBank 데이터가 생성되지 않았습니다")
+            
+            # 최종 상태 업데이트
+            state["agent_logs"].append({
+                "agent": self.name,
+                "action": "complete",
+                "message": "비디오 분석 완료 (기준 시점 탐지 + 행동 분석)"
             })
             
         except Exception as e:
-            error_msg = f"[{self.name}] 기준 시점 탐지 중 오류: {str(e)}"
+            error_msg = f"[{self.name}] 비디오 분석 중 오류: {str(e)}"
             state["errors"].append(error_msg)
             state["status"] = "error"
             print(error_msg)
@@ -133,6 +173,10 @@ class ReferenceDetectorAgent:
             traceback.print_exc()
         
         return state
+    
+    # ========================================
+    # 기준 시점 탐지 메서드들
+    # ========================================
     
     def _detect_inhaler_in(self, video_path: str, play_time: float, start_time: float = 0.0):
         """inhalerIN 기준 시간 탐지"""
@@ -306,7 +350,7 @@ Q6_Confidence: [0.0 to 1.0, indicating your confidence level in the answer]
                               play_time: float, start_time: float, segment_time: float,
                               offset_time: float, sampling_time: float):
         """
-        기준 시간 탐색 (원본 함수와 동일한 로직)
+        기준 시간 탐색
         """
         M, N = 1, int(segment_time / sampling_time)
         gridSize = (int(1280/2)*N, int(720/2)*M)
@@ -384,4 +428,53 @@ Q6_Confidence: [0.0 to 1.0, indicating your confidence level in the answer]
                 current_q_confidence[f'Q{q_num}'] = None
         
         return current_q_answers, current_q_confidence
+    
+    # ========================================
+    # 행동 단계 분석 메서드들
+    # ========================================
+    
+    def _create_action_summary(self, promptbank_data: dict) -> dict:
+        """
+        PromptBank 데이터로부터 행동 요약 생성
+        
+        Args:
+            promptbank_data: PromptBank 데이터
+            
+        Returns:
+            행동 요약 딕셔너리
+        """
+        action_summary = {}
+        check_action_step_common = promptbank_data.get("check_action_step_common", {})
+        
+        for action_key, action_data in check_action_step_common.items():
+            if action_data['time']:  # 데이터가 있는 경우만
+                # YES(score=1)인 시간들 추출
+                yes_times = [
+                    time_val for time_val, score_val in zip(action_data['time'], action_data['score'])
+                    if score_val == 1
+                ]
+                
+                # NO(score=0)인 시간들 추출
+                no_times = [
+                    time_val for time_val, score_val in zip(action_data['time'], action_data['score'])
+                    if score_val == 0
+                ]
+                
+                # Confidence 정보
+                confidence_info = {}
+                if action_data.get('confidence_score'):
+                    confidence_info = {
+                        time: conf for time, conf in action_data['confidence_score']
+                    }
+                
+                action_summary[action_key] = {
+                    'action_description': action_data['action'],
+                    'detected_times': yes_times,
+                    'not_detected_times': no_times,
+                    'confidence': confidence_info,
+                    'total_detections': len(yes_times)
+                }
+        
+        return action_summary
+
 

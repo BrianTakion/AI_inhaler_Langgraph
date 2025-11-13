@@ -9,8 +9,7 @@ Multi-Agent 워크플로우를 구성합니다.
 from langgraph.graph import StateGraph, END
 from agents.state import VideoAnalysisState
 from agents.video_processor_agent import VideoProcessorAgent
-from agents.reference_detector_agent import ReferenceDetectorAgent
-from agents.action_analyzer_agent import ActionAnalyzerAgent
+from agents.video_analyzer_agent import VideoAnalyzerAgent
 from agents.reporter_agent import ReporterAgent
 
 
@@ -20,9 +19,8 @@ class InhalerAnalysisWorkflow:
     
     워크플로우:
     1. VideoProcessor: 비디오 메타데이터 추출
-    2. ReferenceDetector: 기준 시점 탐지 (inhalerIN, faceONinhaler, inhalerOUT)
-    3. ActionAnalyzer: 행동 단계 분석
-    4. Reporter: 결과 취합 및 시각화
+    2. VideoAnalyzer: 기준 시점 탐지 및 행동 단계 분석 (통합)
+    3. Reporter: 결과 취합 및 시각화
     """
     
     def __init__(self, mllm):
@@ -36,8 +34,7 @@ class InhalerAnalysisWorkflow:
         
         # Agent 초기화
         self.video_processor = VideoProcessorAgent()
-        self.reference_detector = ReferenceDetectorAgent(mllm, self.video_processor)
-        self.action_analyzer = ActionAnalyzerAgent()
+        self.video_analyzer = VideoAnalyzerAgent(mllm, self.video_processor)
         self.reporter = ReporterAgent()
         
         # 워크플로우 그래프 생성
@@ -52,15 +49,13 @@ class InhalerAnalysisWorkflow:
         
         # 노드 추가
         workflow.add_node("video_processor", self._video_processor_node)
-        workflow.add_node("reference_detector", self._reference_detector_node)
-        workflow.add_node("action_analyzer", self._action_analyzer_node)
+        workflow.add_node("video_analyzer", self._video_analyzer_node)
         workflow.add_node("reporter", self._reporter_node)
         
         # 엣지 추가 (워크플로우 순서)
         workflow.set_entry_point("video_processor")
-        workflow.add_edge("video_processor", "reference_detector")
-        workflow.add_edge("reference_detector", "action_analyzer")
-        workflow.add_edge("action_analyzer", "reporter")
+        workflow.add_edge("video_processor", "video_analyzer")
+        workflow.add_edge("video_analyzer", "reporter")
         workflow.add_edge("reporter", END)
         
         return workflow
@@ -72,24 +67,17 @@ class InhalerAnalysisWorkflow:
         print("="*50)
         return self.video_processor.process(state)
     
-    def _reference_detector_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
-        """기준 시점 탐지 노드"""
+    def _video_analyzer_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
+        """비디오 분석 노드 (기준 시점 탐지 + 행동 분석 통합)"""
         print("\n" + "="*50)
-        print("=== 2. Reference Detector Agent 실행 ===")
+        print("=== 2. Video Analyzer Agent 실행 ===")
         print("="*50)
-        return self.reference_detector.process(state)
-    
-    def _action_analyzer_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
-        """행동 분석 노드"""
-        print("\n" + "="*50)
-        print("=== 3. Action Analyzer Agent 실행 ===")
-        print("="*50)
-        return self.action_analyzer.process(state)
+        return self.video_analyzer.process(state)
     
     def _reporter_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
         """리포트 생성 노드"""
         print("\n" + "="*50)
-        print("=== 4. Reporter Agent 실행 ===")
+        print("=== 3. Reporter Agent 실행 ===")
         print("="*50)
         return self.reporter.process(state)
     
