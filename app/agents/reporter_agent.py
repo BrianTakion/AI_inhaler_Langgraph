@@ -27,7 +27,7 @@ class ReporterAgent:
     
     def process(self, state: VideoAnalysisState) -> VideoAnalysisState:
         """
-        최종 리포트 생성 (두 agent의 평균값 사용)
+        최종 리포트 생성 (여러 모델의 평균값 사용)
         
         Args:
             state: 현재 상태
@@ -42,8 +42,9 @@ class ReporterAgent:
                 "message": "리포트 생성 시작 (평균값 계산)"
             })
             
-            # 두 agent의 결과를 평균내기
-            print(f"\n[{self.name}] 두 Agent 결과의 평균값 계산 중...")
+            # 모든 모델의 결과를 평균내기
+            num_models = len(state.get("model_results", {}))
+            print(f"\n[{self.name}] {num_models}개 모델 결과의 평균값 계산 중...")
             avg_data = self._compute_average(state)
             state["reference_times_avg"] = avg_data["reference_times_avg"]
             state["promptbank_data_avg"] = avg_data["promptbank_data_avg"]
@@ -251,7 +252,7 @@ class ReporterAgent:
         }
     
     def _create_visualization(self, state: VideoAnalysisState):
-        """Plotly 시각화 생성 (평균값 기반)"""
+        """Plotly 시각화 생성 (여러 모델의 평균값 기반)"""
         try:
             promptbank_data_avg = state.get("promptbank_data_avg")
             if not promptbank_data_avg:
@@ -259,7 +260,7 @@ class ReporterAgent:
                 return None
             
             video_info = state["video_info"]
-            llm_name = "gpt-4o & gpt-4o-mini (Average)"
+            llm_name = state.get("llm_name", "Multiple Models (Average)")
             
             search_reference_time = promptbank_data_avg["search_reference_time"]
             check_action_step_common = promptbank_data_avg["check_action_step_common"]

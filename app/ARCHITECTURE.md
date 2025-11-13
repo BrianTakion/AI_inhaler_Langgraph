@@ -1,36 +1,46 @@
-# LangGraph Multi-Agent 아키텍처
+# LangGraph Multi-Agent 아키텍처 (동적 모델 지원)
 
-## 전체 시스템 아키텍처 (병렬 실행)
+## 전체 시스템 아키텍처 (동적 병렬 실행)
 
 ```mermaid
 graph TD
-    Start([시작]) --> Init[초기 상태 생성]
-    Init --> WF[LangGraph 워크플로우<br/>병렬 오케스트레이션]
+    Start([시작]) --> Init[초기 상태 생성<br/>llm_models 리스트]
+    Init --> WF[LangGraph 워크플로우<br/>동적 병렬 오케스트레이션]
 
     WF --> VP[VideoProcessorAgent]
-    VP --> VA4o[VideoAnalyzerAgent4o<br/>GPT-4o]
-    VP --> VA4oMini[VideoAnalyzerAgent4oMini<br/>GPT-4o-mini]
+    VP --> VA1[VideoAnalyzerAgent<br/>Model 1]
+    VP --> VA2[VideoAnalyzerAgent<br/>Model 2]
+    VP --> VAN[VideoAnalyzerAgent<br/>Model N]
 
-    VA4o --> RA[ReporterAgent<br/>평균 계산 + 시각화]
-    VA4oMini --> RA
+    VA1 --> RA[ReporterAgent<br/>N개 모델 평균 계산]
+    VA2 --> RA
+    VAN --> RA
     RA --> End([종료])
 
-    VP -.->|video_info| State[(공유 상태<br/>병렬 reducer)]
-    VA4o -.->|results_4o| State
-    VA4oMini -.->|results_4o_mini| State
+    VP -.->|video_info| State[(공유 상태<br/>동적 model_results)]
+    VA1 -.->|model_results| State
+    VA2 -.->|model_results| State
+    VAN -.->|model_results| State
     RA -.->|avg_results| State
 
     State -.->|read| VP
-    State -.->|read| VA4o
-    State -.->|read| VA4oMini
+    State -.->|read| VA1
+    State -.->|read| VA2
+    State -.->|read| VAN
     State -.->|read| RA
 
     style VP fill:#e1f5ff
-    style VA4o fill:#fff4e1
-    style VA4oMini fill:#fff4e1
+    style VA1 fill:#fff4e1
+    style VA2 fill:#fff4e1
+    style VAN fill:#fff4e1
     style RA fill:#e8f5e1
     style State fill:#f0f0f0
 ```
+
+**주요 특징:**
+- Agent 개수가 `llm_models` 리스트 길이에 따라 동적으로 생성
+- 모든 모델이 동일한 범용 `VideoAnalyzerAgent` 클래스 사용
+- `model_results` 딕셔너리에 각 모델 결과 저장
 
 ## Agent 상세 구조
 
@@ -59,50 +69,57 @@ graph LR
 - `process(state)`: 비디오 정보 추출
 - `extract_frames(...)`: 프레임 추출 및 그리드 생성
 
-### 2. VideoAnalyzerAgent4o (GPT-4o)
+### 2. VideoAnalyzerAgent (범용, 동적 생성)
 
 ```mermaid
 graph TD
-    A[시작 - GPT-4o] --> B{inhalerIN 탐지}
+    A[시작 - Model X] --> B{inhalerIN 탐지}
     B -->|시간 슬라이딩| C[프레임 추출]
-    C --> D[GPT-4o 분석]
+    C --> D[Model X 분석]
     D --> E{Overall_Answer?}
-    E -->|YES| F[reference_time_4o 저장]
+    E -->|YES| F[reference_time 저장]
     E -->|NO| B
 
     F --> G{faceONinhaler 탐지}
     G --> H[프레임 추출]
-    H --> I[GPT-4o 분석]
+    H --> I[Model X 분석]
     I --> J{Overall_Answer?}
-    J -->|YES| K[reference_time_4o 저장]
+    J -->|YES| K[reference_time 저장]
     J -->|NO| G
 
     K --> L{inhalerOUT 탐지}
     L --> M[프레임 추출]
-    M --> N[GPT-4o 분석]
+    M --> N[Model X 분석]
     N --> O{Overall_Answer?}
-    O -->|YES| P[reference_time_4o 저장]
+    O -->|YES| P[reference_time 저장]
     O -->|NO| L
 
     P --> Q[행동 단계 분석]
     Q --> R[신뢰도 평가]
-    R --> S[action_analysis_4o 저장]
-    S --> T[promptbank_data_4o 저장]
-    T --> U[완료 - GPT-4o]
+    R --> S[model_results에 저장]
+    S --> T[완료 - Model X]
     
     style F fill:#90EE90
     style K fill:#90EE90
     style P fill:#90EE90
 ```
 
+**특징:**
+- 모든 모델이 동일한 클래스 사용
+- `model_id` (예: "gpt-4o_0")로 구분
+- 결과는 `model_results[model_id]`에 저장
+
 **입력:**
 - video_path
 - video_info (play_time)
+- model_id (동적 할당)
+- model_name (리스트에서 지정)
 
-**출력:**
-- reference_times (inhalerIN, faceONinhaler, inhalerOUT)
-- q_answers_accumulated (Q&A 결과)
-- promptbank_data (PromptBank 전체 데이터)
+**출력 (model_results에 저장):**
+- reference_times: {inhalerIN, faceONinhaler, inhalerOUT}
+- action_analysis_results: 행동 분석 결과
+- q_answers_accumulated: Q&A 결과
+- promptbank_data: PromptBank 전체 데이터
 
 **주요 메서드:**
 - `process(state)`: 모든 기준 시점 탐지
