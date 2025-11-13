@@ -2,9 +2,8 @@
 # coding: utf-8
 
 """
-Video Analyzer Agent (Generic)
+Video Analyzer Agent
 기준 시점 탐지와 행동 단계 분석을 통합하여 수행합니다.
-동적으로 여러 LLM 모델을 지원합니다.
 """
 
 import sys
@@ -19,7 +18,7 @@ from .video_processor_agent import VideoProcessorAgent
 
 class VideoAnalyzerAgent:
     """
-    비디오 분석 통합 Agent (Generic)
+    비디오 분석 통합 Agent
     
     주요 기능:
     1. 기준 시점 탐지
@@ -33,19 +32,10 @@ class VideoAnalyzerAgent:
        - 시간대별 행동 매핑
     """
     
-    def __init__(self, mllm, video_processor: VideoProcessorAgent, model_id: str, model_name: str):
-        """
-        Args:
-            mllm: Multimodal LLM 인스턴스
-            video_processor: VideoProcessorAgent 인스턴스
-            model_id: 모델 고유 ID (예: "gpt-4o_0", "gpt-4o-mini_1")
-            model_name: 모델 이름 (예: "gpt-4o", "gpt-4o-mini")
-        """
+    def __init__(self, mllm, video_processor: VideoProcessorAgent):
         self.mllm = mllm
         self.video_processor = video_processor
-        self.model_id = model_id
-        self.model_name = model_name
-        self.name = f"VideoAnalyzerAgent_{model_id}"
+        self.name = "VideoAnalyzerAgent"
         self.promptbank = PB.PromptBank()
     
     def process(self, state: VideoAnalysisState) -> VideoAnalysisState:
@@ -66,7 +56,7 @@ class VideoAnalyzerAgent:
             state["agent_logs"].append({
                 "agent": self.name,
                 "action": "start_analysis",
-                "message": f"비디오 분석 시작 (기준 시점 탐지 + 행동 분석) - {self.model_name}"
+                "message": "비디오 분석 시작 (기준 시점 탐지 + 행동 분석)"
             })
             
             # ========================================
@@ -79,6 +69,8 @@ class VideoAnalyzerAgent:
             ref_time_in, q_answers_in = self._detect_inhaler_in(
                 video_path, play_time, start_time=0.0
             )
+            state["reference_times"]["inhalerIN"] = ref_time_in
+            state["q_answers_accumulated"]["inhalerIN"] = q_answers_in
             
             # PromptBank에 저장
             q_mapping_in = {'Q1': 'sit_stand'}
@@ -91,6 +83,8 @@ class VideoAnalyzerAgent:
             ref_time_face, q_answers_face = self._detect_face_on_inhaler(
                 video_path, play_time, start_time=ref_time_in
             )
+            state["reference_times"]["faceONinhaler"] = ref_time_face
+            state["q_answers_accumulated"]["faceONinhaler"] = q_answers_face
             
             # PromptBank에 저장
             q_mapping_face = {
@@ -112,6 +106,8 @@ class VideoAnalyzerAgent:
             ref_time_out, q_answers_out = self._detect_inhaler_out(
                 video_path, play_time, start_time=ref_time_face
             )
+            state["reference_times"]["inhalerOUT"] = ref_time_out
+            state["q_answers_accumulated"]["inhalerOUT"] = q_answers_out
             
             # PromptBank에 저장
             q_mapping_out = {
@@ -131,18 +127,7 @@ class VideoAnalyzerAgent:
                 "search_reference_time": self.promptbank.search_reference_time,
                 "check_action_step_common": self.promptbank.check_action_step_common
             }
-            
-            reference_times = {
-                "inhalerIN": ref_time_in,
-                "faceONinhaler": ref_time_face,
-                "inhalerOUT": ref_time_out
-            }
-            
-            q_answers_accumulated = {
-                "inhalerIN": q_answers_in,
-                "faceONinhaler": q_answers_face,
-                "inhalerOUT": q_answers_out
-            }
+            state["promptbank_data"] = promptbank_data
             
             state["agent_logs"].append({
                 "agent": self.name,
@@ -159,6 +144,9 @@ class VideoAnalyzerAgent:
                 # 행동 분석 결과 생성
                 action_summary = self._create_action_summary(promptbank_data)
                 
+                state["action_analysis_results"] = action_summary
+                state["status"] = "analysis_complete"
+                
                 state["agent_logs"].append({
                     "agent": self.name,
                     "action": "action_analysis_complete",
@@ -169,19 +157,11 @@ class VideoAnalyzerAgent:
             else:
                 raise ValueError("PromptBank 데이터가 생성되지 않았습니다")
             
-            # 동적 모델별 결과 저장
-            state["model_results"][self.model_id] = {
-                "reference_times": reference_times,
-                "action_analysis_results": action_summary,
-                "q_answers_accumulated": q_answers_accumulated,
-                "promptbank_data": promptbank_data
-            }
-            
             # 최종 상태 업데이트
             state["agent_logs"].append({
                 "agent": self.name,
                 "action": "complete",
-                "message": f"비디오 분석 완료 (기준 시점 탐지 + 행동 분석) - {self.model_name}"
+                "message": "비디오 분석 완료 (기준 시점 탐지 + 행동 분석)"
             })
             
         except Exception as e:

@@ -83,7 +83,7 @@ class ReporterAgent:
     
     def _compute_average(self, state: VideoAnalysisState) -> dict:
         """
-        두 Agent의 결과를 평균내기
+        여러 Agent의 결과를 동적으로 평균내기
         
         Args:
             state: 현재 상태
@@ -91,90 +91,106 @@ class ReporterAgent:
         Returns:
             평균값 딕셔너리
         """
-        # Reference times 평균
-        ref_times_4o = state.get("reference_times_4o", {})
-        ref_times_4o_mini = state.get("reference_times_4o_mini", {})
+        model_results = state.get("model_results", {})
         
+        if not model_results:
+            raise ValueError("모델 결과가 없습니다.")
+        
+        num_models = len(model_results)
+        print(f"[ReporterAgent] {num_models}개 모델의 결과를 평균 계산 중...")
+        
+        # Reference times 평균
         reference_times_avg = {}
-        for key in set(list(ref_times_4o.keys()) + list(ref_times_4o_mini.keys())):
-            val_4o = ref_times_4o.get(key, 0)
-            val_4o_mini = ref_times_4o_mini.get(key, 0)
-            reference_times_avg[key] = round((val_4o + val_4o_mini) / 2.0, 1)
+        all_ref_time_keys = set()
+        for model_id, result in model_results.items():
+            ref_times = result.get("reference_times", {})
+            all_ref_time_keys.update(ref_times.keys())
+        
+        for key in all_ref_time_keys:
+            values = []
+            for model_id, result in model_results.items():
+                ref_times = result.get("reference_times", {})
+                if key in ref_times:
+                    values.append(ref_times[key])
+            reference_times_avg[key] = round(sum(values) / len(values), 1) if values else 0
         
         # PromptBank 데이터 평균
-        promptbank_4o = state.get("promptbank_data_4o", {})
-        promptbank_4o_mini = state.get("promptbank_data_4o_mini", {})
-        
         # search_reference_time 평균
-        search_ref_4o = promptbank_4o.get("search_reference_time", {})
-        search_ref_4o_mini = promptbank_4o_mini.get("search_reference_time", {})
-        
         search_reference_time_avg = {}
-        for key in set(list(search_ref_4o.keys()) + list(search_ref_4o_mini.keys())):
-            ref_4o = search_ref_4o.get(key, {})
-            ref_4o_mini = search_ref_4o_mini.get(key, {})
+        all_search_ref_keys = set()
+        for model_id, result in model_results.items():
+            promptbank = result.get("promptbank_data", {})
+            search_ref = promptbank.get("search_reference_time", {})
+            all_search_ref_keys.update(search_ref.keys())
+        
+        for key in all_search_ref_keys:
+            ref_times = []
+            action = None
+            for model_id, result in model_results.items():
+                promptbank = result.get("promptbank_data", {})
+                search_ref = promptbank.get("search_reference_time", {})
+                if key in search_ref:
+                    ref_times.append(search_ref[key].get('reference_time', 0))
+                    if action is None:
+                        action = search_ref[key].get('action', '')
             
-            avg_ref_time = round(
-                (ref_4o.get('reference_time', 0) + ref_4o_mini.get('reference_time', 0)) / 2.0, 
-                1
-            )
-            
+            avg_ref_time = round(sum(ref_times) / len(ref_times), 1) if ref_times else 0
             search_reference_time_avg[key] = {
-                'action': ref_4o.get('action', ref_4o_mini.get('action', '')),
+                'action': action or '',
                 'reference_time': avg_ref_time
             }
         
         # check_action_step_common 평균
-        check_4o = promptbank_4o.get("check_action_step_common", {})
-        check_4o_mini = promptbank_4o_mini.get("check_action_step_common", {})
-        
         check_action_step_common_avg = {}
-        for action_key in set(list(check_4o.keys()) + list(check_4o_mini.keys())):
-            action_4o = check_4o.get(action_key, {})
-            action_4o_mini = check_4o_mini.get(action_key, {})
+        all_action_keys = set()
+        for model_id, result in model_results.items():
+            promptbank = result.get("promptbank_data", {})
+            check_action = promptbank.get("check_action_step_common", {})
+            all_action_keys.update(check_action.keys())
+        
+        for action_key in all_action_keys:
+            # 모든 모델에서 해당 action_key의 데이터 수집
+            all_times_scores = {}  # {time: [(score, confidence), ...]}
+            action_description = None
             
-            # time과 score를 합치고 평균 계산
-            time_4o = action_4o.get('time', [])
-            score_4o = action_4o.get('score', [])
-            conf_4o = dict(action_4o.get('confidence_score', []))
+            for model_id, result in model_results.items():
+                promptbank = result.get("promptbank_data", {})
+                check_action = promptbank.get("check_action_step_common", {})
+                if action_key in check_action:
+                    action_data = check_action[action_key]
+                    if action_description is None:
+                        action_description = action_data.get('action', '')
+                    
+                    times = action_data.get('time', [])
+                    scores = action_data.get('score', [])
+                    confidences = dict(action_data.get('confidence_score', []))
+                    
+                    for i, t in enumerate(times):
+                        if t not in all_times_scores:
+                            all_times_scores[t] = []
+                        score = scores[i] if i < len(scores) else 0
+                        confidence = confidences.get(t, 0.5)
+                        all_times_scores[t].append((score, confidence))
             
-            time_4o_mini = action_4o_mini.get('time', [])
-            score_4o_mini = action_4o_mini.get('score', [])
-            conf_4o_mini = dict(action_4o_mini.get('confidence_score', []))
-            
-            # 모든 시간값 수집
-            all_times = set(time_4o + time_4o_mini)
-            
+            # 각 시간에 대해 평균 계산
             time_avg = []
             score_avg = []
             confidence_avg = []
             
-            for t in sorted(all_times):
-                # 각 시간에 대한 score와 confidence 찾기
-                scores = []
-                confidences = []
+            for t in sorted(all_times_scores.keys()):
+                score_conf_list = all_times_scores[t]
+                scores = [sc[0] for sc in score_conf_list]
+                confidences = [sc[1] for sc in score_conf_list]
                 
-                if t in time_4o:
-                    idx = time_4o.index(t)
-                    scores.append(score_4o[idx])
-                    confidences.append(conf_4o.get(t, 0.5))
-                
-                if t in time_4o_mini:
-                    idx = time_4o_mini.index(t)
-                    scores.append(score_4o_mini[idx])
-                    confidences.append(conf_4o_mini.get(t, 0.5))
-                
-                # 평균 계산
                 avg_score = sum(scores) / len(scores) if scores else 0
                 avg_confidence = sum(confidences) / len(confidences) if confidences else 0.5
                 
-                # 반올림하여 0 또는 1로 변환
                 time_avg.append(t)
                 score_avg.append(1 if avg_score >= 0.5 else 0)
                 confidence_avg.append((t, round(avg_confidence, 2)))
             
             check_action_step_common_avg[action_key] = {
-                'action': action_4o.get('action', action_4o_mini.get('action', '')),
+                'action': action_description or '',
                 'time': time_avg,
                 'score': score_avg,
                 'confidence_score': confidence_avg

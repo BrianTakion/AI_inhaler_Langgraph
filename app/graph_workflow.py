@@ -3,44 +3,53 @@
 
 """
 LangGraph Workflow 정의
-Multi-Agent 워크플로우를 구성합니다.
+Multi-Agent 워크플로우를 구성합니다. (동적 모델 지원)
 """
 
 from langgraph.graph import StateGraph, END
 from agents.state import VideoAnalysisState
 from agents.video_processor_agent import VideoProcessorAgent
-from agents.video_analyzer_agent_4o import VideoAnalyzerAgent4o
-from agents.video_analyzer_agent_4o_mini import VideoAnalyzerAgent4oMini
+from agents.video_analyzer_agent import VideoAnalyzerAgent
 from agents.reporter_agent import ReporterAgent
 
 
 class InhalerAnalysisWorkflow:
     """
-    흡입기 비디오 분석 워크플로우
+    흡입기 비디오 분석 워크플로우 (동적 모델 지원)
     
     워크플로우:
     1. VideoProcessor: 비디오 메타데이터 추출
     2. VideoAnalyzer (병렬):
-       - VideoAnalyzer4o: GPT-4o를 사용한 분석
-       - VideoAnalyzer4oMini: GPT-4o-mini를 사용한 분석
+       - 리스트로 지정된 모델 개수만큼 병렬 실행
     3. Reporter: 결과 취합 및 평균값 시각화
     """
     
-    def __init__(self, mllm_4o, mllm_4o_mini):
+    def __init__(self, mllm_instances: list, llm_models: list):
         """
         워크플로우 초기화
         
         Args:
-            mllm_4o: GPT-4o Multimodal LLM 인스턴스
-            mllm_4o_mini: GPT-4o-mini Multimodal LLM 인스턴스
+            mllm_instances: Multimodal LLM 인스턴스 리스트
+            llm_models: 사용할 LLM 모델 이름 리스트 (예: ["gpt-4o", "gpt-4o-mini", ...])
         """
-        self.mllm_4o = mllm_4o
-        self.mllm_4o_mini = mllm_4o_mini
+        if len(mllm_instances) != len(llm_models):
+            raise ValueError("mllm_instances와 llm_models의 개수가 일치해야 합니다.")
+        
+        self.mllm_instances = mllm_instances
+        self.llm_models = llm_models
         
         # Agent 초기화
         self.video_processor = VideoProcessorAgent()
-        self.video_analyzer_4o = VideoAnalyzerAgent4o(mllm_4o, self.video_processor)
-        self.video_analyzer_4o_mini = VideoAnalyzerAgent4oMini(mllm_4o_mini, self.video_processor)
+        
+        # 동적으로 VideoAnalyzerAgent 생성
+        self.video_analyzers = []
+        self.analyzer_nodes = {}
+        for idx, (mllm, model_name) in enumerate(zip(mllm_instances, llm_models)):
+            model_id = f"{model_name}_{idx}"
+            analyzer = VideoAnalyzerAgent(mllm, self.video_processor, model_id, model_name)
+            self.video_analyzers.append(analyzer)
+            self.analyzer_nodes[model_id] = analyzer
+        
         self.reporter = ReporterAgent()
         
         # 워크플로우 그래프 생성
@@ -48,25 +57,35 @@ class InhalerAnalysisWorkflow:
         self.app = self.workflow.compile()
     
     def _create_workflow(self):
-        """LangGraph 워크플로우 생성 (병렬 처리)"""
+        """LangGraph 워크플로우 생성 (병렬 처리, 동적 노드)"""
         
         # StateGraph 생성
         workflow = StateGraph(VideoAnalysisState)
         
-        # 노드 추가
+        # 1. VideoProcessor 노드 추가
         workflow.add_node("video_processor", self._video_processor_node)
-        workflow.add_node("video_analyzer_4o", self._video_analyzer_4o_node)
-        workflow.add_node("video_analyzer_4o_mini", self._video_analyzer_4o_mini_node)
+        
+        # 2. 동적으로 VideoAnalyzer 노드들 추가
+        for model_id, analyzer in self.analyzer_nodes.items():
+            node_name = f"video_analyzer_{model_id}"
+            workflow.add_node(node_name, self._create_analyzer_node(analyzer, model_id))
+        
+        # 3. Reporter 노드 추가
         workflow.add_node("reporter", self._reporter_node)
         
         # 엣지 추가 (워크플로우 순서)
         workflow.set_entry_point("video_processor")
-        # 병렬 실행: video_processor -> 두 analyzer가 병렬로 실행
-        workflow.add_edge("video_processor", "video_analyzer_4o")
-        workflow.add_edge("video_processor", "video_analyzer_4o_mini")
-        # 두 analyzer 결과를 reporter로 전달
-        workflow.add_edge("video_analyzer_4o", "reporter")
-        workflow.add_edge("video_analyzer_4o_mini", "reporter")
+        
+        # 병렬 실행: video_processor -> 모든 analyzer가 병렬로 실행
+        for model_id in self.analyzer_nodes.keys():
+            node_name = f"video_analyzer_{model_id}"
+            workflow.add_edge("video_processor", node_name)
+        
+        # 모든 analyzer 결과를 reporter로 전달
+        for model_id in self.analyzer_nodes.keys():
+            node_name = f"video_analyzer_{model_id}"
+            workflow.add_edge(node_name, "reporter")
+        
         workflow.add_edge("reporter", END)
         
         return workflow
@@ -78,19 +97,14 @@ class InhalerAnalysisWorkflow:
         print("="*50)
         return self.video_processor.process(state)
     
-    def _video_analyzer_4o_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
-        """비디오 분석 노드 - GPT-4o"""
-        print("\n" + "="*50)
-        print("=== 2-1. Video Analyzer Agent (GPT-4o) 실행 ===")
-        print("="*50)
-        return self.video_analyzer_4o.process(state)
-    
-    def _video_analyzer_4o_mini_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
-        """비디오 분석 노드 - GPT-4o-mini"""
-        print("\n" + "="*50)
-        print("=== 2-2. Video Analyzer Agent (GPT-4o-mini) 실행 ===")
-        print("="*50)
-        return self.video_analyzer_4o_mini.process(state)
+    def _create_analyzer_node(self, analyzer, model_id):
+        """동적으로 Analyzer 노드 함수 생성"""
+        def analyzer_node(state: VideoAnalysisState) -> VideoAnalysisState:
+            print("\n" + "="*50)
+            print(f"=== 2. Video Analyzer Agent ({model_id}) 실행 ===")
+            print("="*50)
+            return analyzer.process(state)
+        return analyzer_node
     
     def _reporter_node(self, state: VideoAnalysisState) -> VideoAnalysisState:
         """리포트 생성 노드"""
@@ -145,16 +159,16 @@ class InhalerAnalysisWorkflow:
             print(f"워크플로우 시각화 실패: {e}")
 
 
-def create_workflow(mllm_4o, mllm_4o_mini) -> InhalerAnalysisWorkflow:
+def create_workflow(mllm_instances: list, llm_models: list) -> InhalerAnalysisWorkflow:
     """
     워크플로우 생성 헬퍼 함수
     
     Args:
-        mllm_4o: GPT-4o Multimodal LLM 인스턴스
-        mllm_4o_mini: GPT-4o-mini Multimodal LLM 인스턴스
+        mllm_instances: Multimodal LLM 인스턴스 리스트
+        llm_models: 사용할 LLM 모델 이름 리스트 (예: ["gpt-4o", "gpt-4o-mini", ...])
         
     Returns:
         InhalerAnalysisWorkflow 인스턴스
     """
-    return InhalerAnalysisWorkflow(mllm_4o, mllm_4o_mini)
+    return InhalerAnalysisWorkflow(mllm_instances, llm_models)
 

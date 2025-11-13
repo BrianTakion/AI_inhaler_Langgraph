@@ -24,16 +24,25 @@ from graph_workflow import create_workflow
 def main():
     """메인 실행 함수"""
     
-    # LLM 초기화 (두 개의 모델)
-    llm_name_4o = "gpt-4o"
-    llm_name_4o_mini = "gpt-4o-mini"
+    # ========================================
+    # LLM 모델 설정 (리스트 형식으로 여러 모델 지정 가능)
+    # ========================================
+    # 예시:
+    # llm_models = ["gpt-4o"]  # 1개 모델
+    # llm_models = ["gpt-4o", "gpt-4o-mini"]  # 2개 모델
+    # llm_models = ["gpt-4o-mini", "gpt-4o-mini", "gpt-4o"]  # 3개 모델
     
-    print(f"LLM 모델 초기화:")
-    print(f"  - {llm_name_4o}")
-    print(f"  - {llm_name_4o_mini}")
+    llm_models = ["gpt-4o", "gpt-4o", "gpt-4o", "gpt-4o"]  # 사용할 LLM 모델 리스트
     
-    mllm_4o = mLLM.multimodalLLM(llm_name=llm_name_4o, api_key=api_key)
-    mllm_4o_mini = mLLM.multimodalLLM(llm_name=llm_name_4o_mini, api_key=api_key)
+    print(f"LLM 모델 초기화 ({len(llm_models)}개):")
+    for idx, model_name in enumerate(llm_models):
+        print(f"  {idx+1}. {model_name}")
+    
+    # LLM 인스턴스 생성
+    mllm_instances = []
+    for model_name in llm_models:
+        mllm = mLLM.multimodalLLM(llm_name=model_name, api_key=api_key)
+        mllm_instances.append(mllm)
     
     # 비디오 파일 경로 설정
     base_dir = r"/workspace/app/video_source"
@@ -54,12 +63,12 @@ def main():
     # 초기 상태 생성
     initial_state = create_initial_state(
         video_path=video_path,
-        llm_name=f"{llm_name_4o} & {llm_name_4o_mini}",
+        llm_models=llm_models,
         api_key=api_key
     )
     
-    # 워크플로우 생성 (두 개의 LLM 인스턴스 전달)
-    workflow = create_workflow(mllm_4o, mllm_4o_mini)
+    # 워크플로우 생성 (LLM 인스턴스 리스트 전달)
+    workflow = create_workflow(mllm_instances, llm_models)
     
     # 워크플로우 실행
     final_state = workflow.run(initial_state)
