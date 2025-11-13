@@ -1,32 +1,34 @@
 # LangGraph Multi-Agent 아키텍처
 
-## 전체 시스템 아키텍처
+## 전체 시스템 아키텍처 (병렬 실행)
 
 ```mermaid
 graph TD
     Start([시작]) --> Init[초기 상태 생성]
-    Init --> WF[LangGraph 워크플로우]
-    
+    Init --> WF[LangGraph 워크플로우<br/>병렬 오케스트레이션]
+
     WF --> VP[VideoProcessorAgent]
-    VP --> RD[ReferenceDetectorAgent]
-    RD --> AA[ActionAnalyzerAgent]
-    AA --> RA[ReporterAgent]
+    VP --> VA4o[VideoAnalyzerAgent4o<br/>GPT-4o]
+    VP --> VA4oMini[VideoAnalyzerAgent4oMini<br/>GPT-4o-mini]
+
+    VA4o --> RA[ReporterAgent<br/>평균 계산 + 시각화]
+    VA4oMini --> RA
     RA --> End([종료])
-    
-    VP -.->|video_info| State[(공유 상태)]
-    RD -.->|reference_times| State
-    AA -.->|action_analysis| State
-    RA -.->|final_report| State
-    
+
+    VP -.->|video_info| State[(공유 상태<br/>병렬 reducer)]
+    VA4o -.->|results_4o| State
+    VA4oMini -.->|results_4o_mini| State
+    RA -.->|avg_results| State
+
     State -.->|read| VP
-    State -.->|read| RD
-    State -.->|read| AA
+    State -.->|read| VA4o
+    State -.->|read| VA4oMini
     State -.->|read| RA
-    
+
     style VP fill:#e1f5ff
-    style RD fill:#fff4e1
-    style AA fill:#e8f5e1
-    style RA fill:#ffe1e1
+    style VA4o fill:#fff4e1
+    style VA4oMini fill:#fff4e1
+    style RA fill:#e8f5e1
     style State fill:#f0f0f0
 ```
 
@@ -57,33 +59,36 @@ graph LR
 - `process(state)`: 비디오 정보 추출
 - `extract_frames(...)`: 프레임 추출 및 그리드 생성
 
-### 2. ReferenceDetectorAgent
+### 2. VideoAnalyzerAgent4o (GPT-4o)
 
 ```mermaid
 graph TD
-    A[시작] --> B{inhalerIN 탐지}
+    A[시작 - GPT-4o] --> B{inhalerIN 탐지}
     B -->|시간 슬라이딩| C[프레임 추출]
-    C --> D[LLM 분석]
+    C --> D[GPT-4o 분석]
     D --> E{Overall_Answer?}
-    E -->|YES| F[reference_time 저장]
+    E -->|YES| F[reference_time_4o 저장]
     E -->|NO| B
-    
+
     F --> G{faceONinhaler 탐지}
     G --> H[프레임 추출]
-    H --> I[LLM 분석]
+    H --> I[GPT-4o 분석]
     I --> J{Overall_Answer?}
-    J -->|YES| K[reference_time 저장]
+    J -->|YES| K[reference_time_4o 저장]
     J -->|NO| G
-    
+
     K --> L{inhalerOUT 탐지}
     L --> M[프레임 추출]
-    M --> N[LLM 분석]
+    M --> N[GPT-4o 분석]
     N --> O{Overall_Answer?}
-    O -->|YES| P[reference_time 저장]
+    O -->|YES| P[reference_time_4o 저장]
     O -->|NO| L
-    
-    P --> Q[PromptBank 업데이트]
-    Q --> R[완료]
+
+    P --> Q[행동 단계 분석]
+    Q --> R[신뢰도 평가]
+    R --> S[action_analysis_4o 저장]
+    S --> T[promptbank_data_4o 저장]
+    T --> U[완료 - GPT-4o]
     
     style F fill:#90EE90
     style K fill:#90EE90
@@ -106,71 +111,101 @@ graph TD
 - `_detect_inhaler_out()`: inhalerOUT 탐지
 - `_search_reference_time()`: 시간 슬라이딩 탐색
 
-### 3. ActionAnalyzerAgent
-
-```mermaid
-graph LR
-    A[PromptBank 데이터] --> B[행동 단계별 분석]
-    B --> C{각 행동}
-    C --> D[YES 시간 추출]
-    C --> E[NO 시간 추출]
-    C --> F[Confidence 정보]
-    
-    D --> G[action_summary]
-    E --> G
-    F --> G
-    
-    G --> H[(action_analysis_results)]
-    
-    style G fill:#e8f5e1
-    style H fill:#f0f0f0
-```
-
-**입력:**
-- promptbank_data
-
-**출력:**
-- action_analysis_results (행동별 요약)
-
-**주요 메서드:**
-- `process(state)`: 행동 분석 실행
-- `_create_action_summary()`: 행동 요약 생성
-
-### 4. ReporterAgent
+### 3. VideoAnalyzerAgent4oMini (GPT-4o-mini)
 
 ```mermaid
 graph TD
-    A[모든 결과 수집] --> B[최종 리포트 생성]
-    B --> C[Plotly 시각화]
-    
-    C --> D[Reference Time 표시]
-    C --> E[Action Steps 표시]
-    C --> F[Confidence 색상 매핑]
-    
-    D --> G[그래프 출력]
-    E --> G
-    F --> G
-    
-    G --> H[요약 정보 출력]
-    
+    A[시작 - GPT-4o-mini] --> B{inhalerIN 탐지}
+    B -->|시간 슬라이딩| C[프레임 추출]
+    C --> D[GPT-4o-mini 분석]
+    D --> E{Overall_Answer?}
+    E -->|YES| F[reference_time_4o_mini 저장]
+    E -->|NO| B
+
+    F --> G{faceONinhaler 탐지}
+    G --> H[프레임 추출]
+    H --> I[GPT-4o-mini 분석]
+    I --> J{Overall_Answer?}
+    J -->|YES| K[reference_time_4o_mini 저장]
+    J -->|NO| G
+
+    K --> L{inhalerOUT 탐지}
+    L --> M[프레임 추출]
+    M --> N[GPT-4o-mini 분석]
+    N --> O{Overall_Answer?}
+    O -->|YES| P[reference_time_4o_mini 저장]
+    O -->|NO| L
+
+    P --> Q[행동 단계 분석]
+    Q --> R[신뢰도 평가]
+    R --> S[action_analysis_4o_mini 저장]
+    S --> T[promptbank_data_4o_mini 저장]
+    T --> U[완료 - GPT-4o-mini]
+
+    style F fill:#90EE90
+    style K fill:#90EE90
+    style P fill:#90EE90
+```
+
+**입력:**
+- video_info (VideoProcessorAgent로부터)
+
+**출력:**
+- reference_times_4o_mini (기준 시간)
+- action_analysis_results_4o_mini (행동 분석)
+- q_answers_accumulated_4o_mini (Q&A 결과)
+- promptbank_data_4o_mini (PromptBank 데이터)
+
+**주요 메서드:**
+- `process(state)`: 비디오 분석 실행 (GPT-4o-mini)
+- `_detect_inhaler_in()`: inhalerIN 탐지
+- `_detect_face_on_inhaler()`: faceONinhaler 탐지
+- `_detect_inhaler_out()`: inhalerOUT 탐지
+- `_create_action_summary()`: 행동 요약 생성
+
+### 4. ReporterAgent (멀티모델 앙상블)
+
+```mermaid
+graph TD
+    A[GPT-4o + GPT-4o-mini 결과 수집] --> B[평균 계산]
+    B --> C[reference_times_avg 생성]
+    B --> D[promptbank_data_avg 생성]
+
+    C --> E[최종 리포트 생성]
+    D --> E
+
+    E --> F[Plotly 시각화 - 평균값 기반]
+    F --> G[Reference Time 표시]
+    F --> H[Action Steps 표시]
+    F --> I[Confidence 색상 매핑]
+
+    G --> J[그래프 출력]
+    H --> J
+    I --> J
+
+    J --> K[요약 정보 출력]
+
     style B fill:#ffe1e1
-    style G fill:#FFD700
+    style J fill:#FFD700
 ```
 
 **입력:**
 - video_info
-- reference_times
-- action_analysis_results
-- promptbank_data
+- reference_times_4o, reference_times_4o_mini
+- action_analysis_results_4o, action_analysis_results_4o_mini
+- promptbank_data_4o, promptbank_data_4o_mini
 
 **출력:**
-- final_report (최종 리포트)
-- visualization_path (시각화 결과)
+- reference_times_avg (평균 기준 시간)
+- promptbank_data_avg (평균 PromptBank 데이터)
+- final_report (최종 리포트 - 평균값 기반)
+- visualization_path (시각화 결과 - 평균값 기반)
 
 **주요 메서드:**
-- `process(state)`: 리포트 생성 실행
-- `_create_final_report()`: 최종 리포트 생성
-- `_create_visualization()`: Plotly 시각화
+- `process(state)`: 평균 계산 및 리포트 생성 실행
+- `_compute_average()`: 두 모델 결과 평균 계산
+- `_create_final_report()`: 최종 리포트 생성 (평균값 기반)
+- `_create_visualization()`: Plotly 시각화 (평균값 기반)
 - `_print_summary()`: 요약 정보 출력
 
 ## 상태(State) 관리

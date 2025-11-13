@@ -24,23 +24,27 @@
    - 데이터 흐름 다이어그램
    - Mermaid 시각화
 
-4. **[COMPARISON.md](COMPARISON.md)** ⭐⭐⭐⭐
+4. **[MULTIMODEL_ARCHITECTURE.md](MULTIMODEL_ARCHITECTURE.md)** ⭐⭐⭐⭐
+   - 병렬 Multi-Agent 아키텍처
+   - GPT-4o + GPT-4o-mini 멀티모델 실행
+   - State 구조 및 Reducer 함수 상세
+
+5. **[COMPARISON.md](COMPARISON.md)** ⭐⭐⭐⭐
    - 원본 코드와의 비교
    - 장단점 분석
    - 실제 사용 시나리오
 
 ### 🔧 사용하기 (30분-1시간)
 
-5. **[README_LANGGRAPH.md](README_LANGGRAPH.md)** ⭐⭐⭐⭐
-   - 자세한 사용 설명서
+6. **[README_LANGGRAPH.md](README_LANGGRAPH.md)** ⭐⭐⭐⭐⭐
+   - 자세한 사용 설명서 (병렬 실행 포함)
    - Agent별 상세 설명
    - 베스트 프랙티스
    - FAQ
 
-6. **[example_usage.py](example_usage.py)** ⭐⭐⭐⭐
-   - 다양한 사용 예제
-   - 커스텀 워크플로우
-   - 오류 처리 예제
+7. **코드 예제**
+   - `main_langgraph_251109.py`: 병렬 실행 예제
+   - `graph_workflow.py`: 워크플로우 구현 예제
 
 ## 📁 파일 구조
 
@@ -48,43 +52,53 @@
 
 ```
 app/
-├── 📖 문서 (당신이 지금 보는 파일들)
-│   ├── INDEX.md                    # 📍 이 파일
-│   ├── QUICKSTART.md               # ⚡ 빠른 시작
-│   ├── SUMMARY_MULTIAGENT.md       # 📋 프로젝트 요약
-│   ├── ARCHITECTURE.md             # 🏗️ 아키텍처 설명
-│   ├── COMPARISON.md               # 📊 원본과 비교
-│   └── README_LANGGRAPH.md         # 📖 상세 문서
+├── 📖 문서 (병렬 실행 업데이트됨)
+│   ├── INDEX.md                          # 📍 이 파일
+│   ├── QUICKSTART.md                     # ⚡ 빠른 시작 (병렬 실행)
+│   ├── SUMMARY_MULTIAGENT.md             # 📋 프로젝트 요약 (병렬 구조)
+│   ├── ARCHITECTURE.md                   # 🏗️ 아키텍처 설명
+│   ├── MULTIMODEL_ARCHITECTURE.md        # 🏗️ 병렬 멀티모델 아키텍처
+│   ├── COMPARISON.md                     # 📊 원본과 비교 (병렬 기능 추가)
+│   └── README_LANGGRAPH.md               # 📖 상세 문서 (병렬 실행 포함)
 │
-├── 🤖 Agent 모듈 (핵심 로직)
+├── 🤖 Agent 모듈 (병렬 실행 지원)
 │   └── agents/
-│       ├── state.py                     # 상태 정의
-│       ├── video_processor_agent.py     # 비디오 처리
-│       ├── reference_detector_agent.py  # 기준 시점 탐지
-│       ├── action_analyzer_agent.py     # 행동 분석
-│       └── reporter_agent.py            # 리포팅
+│       ├── state.py                      # 상태 정의 + 병렬 reducer
+│       ├── video_processor_agent.py      # 비디오 처리
+│       ├── video_analyzer_agent_4o.py    # GPT-4o 분석 Agent
+│       ├── video_analyzer_agent_4o_mini.py # GPT-4o-mini 분석 Agent
+│       └── reporter_agent.py             # 평균 계산 + 리포팅
 │
-├── 🔄 워크플로우
-│   └── graph_workflow.py           # LangGraph 워크플로우
+├── 🔄 워크플로우 (병렬 지원)
+│   └── graph_workflow.py           # LangGraph 병렬 워크플로우
 │
-├── 🚀 실행 파일
-│   ├── main_langgraph_251109.py    # 메인 실행
-│   └── example_usage.py            # 사용 예제
+├── 🚀 실행 파일 (병렬 처리)
+│   └── main_langgraph_251109.py    # 메인 실행 (GPT-4o + GPT-4o-mini)
 │
 ├── 🛠️ 유틸리티 (기존 코드)
 │   ├── class_MultimodalLLM_QA_251107.py
 │   ├── class_Media_Edit_251107.py
 │   └── class_PromptBank_251107.py
 │
-└── 📦 설정
-    └── requirements_langgraph.txt  # 패키지 요구사항
+├── 📦 설정
+│   └── requirements_langgraph.txt  # 패키지 요구사항
+│
+└── 🎬 데이터
+    └── video_source/               # 비디오 파일들
 ```
 
 ### 참고용 파일
 
 ```
 app/
-├── 251107 inhaler_video_analyzer.py  # 원본 코드 (비교용)
+├── 251113_del/                       # 🗑️ 관련 없는 파일들
+│   ├── 251107 inhaler_video_analyzer.py  # 원본 코드 (비교용)
+│   ├── 251107 backup/                 # 백업 파일들
+│   ├── 251109 backup/                 # 백업 파일들
+│   ├── main_code_test.py              # 테스트 코드
+│   ├── example_usage.py               # 예제 코드
+│   └── test_devcontainer.*            # 개발환경 테스트
+│
 └── video_source/                      # 비디오 파일들
 ```
 

@@ -8,35 +8,32 @@
 
 ```mermaid
 sequenceDiagram
-    participant Main as main_langgraph
+    participant Main as main_langgraph_251109
     participant WF as Workflow
     participant VP as VideoProcessor
-    participant VA1 as VideoAnalyzer<br/>(gpt-4o)
-    participant VA2 as VideoAnalyzer<br/>(gpt-4o-mini)
-    participant VA3 as VideoAnalyzer<br/>(o1)
-    participant RP as Reporter<br/>(평균 계산)
-    
-    Main->>WF: 모델 리스트 전달
-    Note over WF: ["gpt-4o", "gpt-4o-mini", "o1"]
-    
+    participant VA1 as VideoAnalyzer4o<br/>(gpt-4o)
+    participant VA2 as VideoAnalyzer4oMini<br/>(gpt-4o-mini)
+    participant RP as Reporter<br/>(평균 계산 + 시각화)
+
+    Main->>WF: 두 모델 인스턴스 전달
+    Note over WF: mllm_4o, mllm_4o_mini
+
     WF->>VP: 비디오 메타데이터 추출
     VP-->>WF: video_info 반환
-    
+
     par 병렬 실행
         WF->>VA1: gpt-4o로 분석 시작
         WF->>VA2: gpt-4o-mini로 분석 시작
-        WF->>VA3: o1로 분석 시작
     end
-    
-    VA1-->>WF: model_results["gpt-4o"]
-    VA2-->>WF: model_results["gpt-4o-mini"]
-    VA3-->>WF: model_results["o1"]
-    
-    WF->>RP: 모든 모델 결과 전달
-    RP->>RP: 평균 계산
-    RP->>RP: 시각화 생성
+
+    VA1-->>WF: reference_times_4o,<br/>action_analysis_results_4o
+    VA2-->>WF: reference_times_4o_mini,<br/>action_analysis_results_4o_mini
+
+    WF->>RP: 두 모델 결과 모두 전달
+    RP->>RP: 평균 계산 (reference_times_avg,<br/>promptbank_data_avg)
+    RP->>RP: 시각화 생성 (평균값 기반)
     RP-->>WF: final_report (평균 결과)
-    
+
     WF-->>Main: 완료
 ```
 
@@ -44,50 +41,51 @@ sequenceDiagram
 
 ```python
 VideoAnalysisState = {
-    "video_path": str,
-    "llm_models": List[str],  # ["gpt-4o", "gpt-4o-mini", "o1"]
-    "api_key": str,
-    
-    "video_info": {
-        "video_name": str,
-        "play_time": float,
-        "frame_count": int,
-        ...
-    },
-    
-    # 모델별 결과 저장
-    "model_results": {
-        "gpt-4o": {
-            "reference_times": {
-                "inhalerIN": float,
-                "faceONinhaler": float,
-                "inhalerOUT": float
-            },
-            "action_analysis_results": {...},
-            "q_answers_accumulated": {...},
-            "promptbank_data": {...}
-        },
-        "gpt-4o-mini": {...},
-        "o1": {...}
-    },
-    
-    # 평균 결과
-    "final_report": {
-        "video_info": {...},
-        "model_count": int,
-        "models": List[str],
-        "averaged_reference_times": {
-            "inhalerIN": float,  # 평균값
-            "faceONinhaler": float,
-            "inhalerOUT": float
-        },
-        "individual_model_results": {
-            "gpt-4o": {...},
-            "gpt-4o-mini": {...},
-            "o1": {...}
-        }
-    }
+    # 입력 (병렬 실행 시 첫 번째 값 유지)
+    "video_path": Annotated[str, keep_first],
+    "llm_name": Annotated[str, keep_first],
+    "api_key": Annotated[str, keep_first],
+
+    # 비디오 정보 (병렬 실행 시 첫 번째 값 유지)
+    "video_info": Annotated[Dict, keep_first],
+
+    # GPT-4o 결과
+    "reference_times_4o": Annotated[Dict[str, float], operator.or_],
+    "action_analysis_results_4o": Annotated[Dict, operator.or_],
+    "q_answers_accumulated_4o": Annotated[Dict, operator.or_],
+    "promptbank_data_4o": Annotated[Dict, keep_non_none],
+
+    # GPT-4o-mini 결과
+    "reference_times_4o_mini": Annotated[Dict[str, float], operator.or_],
+    "action_analysis_results_4o_mini": Annotated[Dict, operator.or_],
+    "q_answers_accumulated_4o_mini": Annotated[Dict, operator.or_],
+    "promptbank_data_4o_mini": Annotated[Dict, keep_non_none],
+
+    # 평균 결과 (Reporter Agent가 계산)
+    "reference_times_avg": Annotated[Dict[str, float], keep_non_none],
+    "promptbank_data_avg": Annotated[Dict, keep_non_none],
+
+    # 최종 결과
+    "final_report": Annotated[Dict, keep_non_none],
+    "visualization_path": Annotated[str, keep_non_none],
+
+    # 메타데이터
+    "errors": Annotated[List[str], operator.add],
+    "status": Annotated[str, keep_non_none],
+    "agent_logs": Annotated[List[Dict], operator.add]
 }
+```
+
+### Reducer 함수 설명
+
+```python
+def keep_first(left: Any, right: Any) -> Any:
+    """병렬 실행 시 첫 번째 유효한 값 유지"""
+    # 입력 정보는 첫 번째 Agent의 값 유지
+
+def keep_non_none(left: Any, right: Any) -> Any:
+    """병렬 실행 시 None이 아닌 값 우선"""
+    # Reporter Agent의 결과는 최신 값 유지
 ```
 
 ## 평균 계산 로직

@@ -29,12 +29,17 @@ video_source/
     └── 01_Ellipta_full.mov
 ```
 
-### 3단계: 실행 (3분)
+### 3단계: 병렬 실행 (3분)
 
 ```bash
-# 메인 스크립트 실행
+# 메인 스크립트 실행 (GPT-4o + GPT-4o-mini 병렬 분석)
 python main_langgraph_251109.py
 ```
+
+**실행 특징**:
+- GPT-4o와 GPT-4o-mini가 동시에 비디오를 분석
+- 두 모델의 결과를 평균하여 더 정확한 분석 결과 제공
+- 분석 완료 후 Plotly 그래프가 자동으로 표시됨
 
 ## 결과 확인
 

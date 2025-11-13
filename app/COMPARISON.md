@@ -23,24 +23,25 @@
 - 순차적 실행
 - 함수 기반 프로그래밍
 
-### Multi-Agent 구조
+### Multi-Agent 구조 (병렬 실행)
 
 ```
 agents/
-├── state.py (상태 정의)
+├── state.py (상태 정의 + 병렬 처리용 reducer)
 ├── video_processor_agent.py (비디오 처리)
-├── reference_detector_agent.py (기준 시점 탐지)
-├── action_analyzer_agent.py (행동 분석)
-└── reporter_agent.py (리포팅)
+├── video_analyzer_agent_4o.py (GPT-4o 분석 Agent)
+├── video_analyzer_agent_4o_mini.py (GPT-4o-mini 분석 Agent)
+└── reporter_agent.py (평균 계산 + 리포팅)
 
-graph_workflow.py (워크플로우 정의)
-main_langgraph_251109.py (메인 실행)
+graph_workflow.py (병렬 워크플로우 정의)
+main_langgraph_251109.py (병렬 메인 실행)
 ```
 
 **특징:**
-- 모듈화된 Agent 구조
-- LangGraph 기반 워크플로우
+- 모듈화된 Agent 구조 (병렬 실행)
+- LangGraph 기반 워크플로우 (멀티모델 지원)
 - 객체 지향 프로그래밍
+- 다중 LLM 모델 앙상블 (정확도 향상)
 
 ## 주요 차이점
 
@@ -51,7 +52,9 @@ main_langgraph_251109.py (메인 실행)
 | 파일 수 | 1개 (697줄) | 9개 (평균 ~150줄/파일) |
 | 구조 | 함수 기반 | 클래스 기반 Agent |
 | 상태 관리 | 지역 변수 | TypedDict 상태 |
-| 워크플로우 | 순차 실행 | LangGraph 그래프 |
+| 워크플로우 | 순차 실행 | LangGraph 병렬 그래프 |
+| 모델 사용 | 단일 모델 (GPT-4o) | 다중 모델 (GPT-4o + GPT-4o-mini) |
+| 실행 방식 | 단일 스레드 | 병렬 실행 + 평균화 |
 
 ### 2. 기능 비교
 
