@@ -22,6 +22,18 @@ class ReporterAgent:
     - JSON/CSV 리포트 출력
     """
     
+    # Reference 순서 정의 (밑에서 위로)
+    REFERENCE_ORDER = ['inhalerIN', 'faceONinhaler', 'inhalerOUT']
+    
+    # 액션 순서 정의 (밑에서 위로)
+    ACTION_ORDER = [
+        'sit_stand', 'remove_cover', 'inspect_mouthpiece', 
+        'shake_inhaler', 'hold_inhaler', 'load_dose',
+        'exhale_before', 'seal_lips', 'inhale_deeply',
+        'remove_inhaler', 'hold_breath', 'exhale_after',
+        'replace_cover'
+    ]
+    
     def __init__(self):
         self.name = "ReporterAgent"
     
@@ -265,11 +277,37 @@ class ReporterAgent:
             search_reference_time = promptbank_data_avg["search_reference_time"]
             check_action_step_common = promptbank_data_avg["check_action_step_common"]
             
-            # 모든 키와 y 위치 설정
+            # 모든 키와 y 위치 설정 (REFERENCE_ORDER, ACTION_ORDER 순서 적용, 밑에서 위로)
             reference_keys = list(search_reference_time.keys())
             action_keys = list(check_action_step_common.keys())
-            all_keys = reference_keys + action_keys
-            y_positions = {key: i * 0.1 for i, key in enumerate(all_keys)}
+            
+            # REFERENCE_ORDER에 따라 reference_keys 정렬
+            ordered_reference_keys = []
+            for ref in self.REFERENCE_ORDER:
+                if ref in reference_keys:
+                    ordered_reference_keys.append(ref)
+            
+            # REFERENCE_ORDER에 없는 reference_keys도 추가
+            for key in reference_keys:
+                if key not in ordered_reference_keys:
+                    ordered_reference_keys.append(key)
+            
+            # ACTION_ORDER에 따라 action_keys 정렬
+            ordered_action_keys = []
+            for action in self.ACTION_ORDER:
+                if action in action_keys:
+                    ordered_action_keys.append(action)
+            
+            # ACTION_ORDER에 없는 action_keys도 추가
+            for key in action_keys:
+                if key not in ordered_action_keys:
+                    ordered_action_keys.append(key)
+            
+            # 전체 순서: reference_keys + action_keys (밑에서 위로)
+            ordered_keys = ordered_reference_keys + ordered_action_keys
+            
+            # y 위치 할당 (밑에서 위로)
+            y_positions = {key: i * 0.1 for i, key in enumerate(ordered_keys)}
             
             play_time = video_info["play_time"]
             min_time, max_time = -1.0, play_time
