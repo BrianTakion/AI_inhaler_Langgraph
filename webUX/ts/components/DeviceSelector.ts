@@ -4,19 +4,34 @@ import { DeviceType } from '../types/analysis.js';
 
 const devices: DeviceType[] = [
   { 
-    id: 'DPI', 
-    name: 'DPI', 
-    description: 'Dry Powder Inhaler (건조분말흡입기)' 
+    id: 'pMDI_type1', 
+    name: 'pMDI_type1', 
+    description: 'pMDI_type1(기본 가스분사 스프레이 구조) - Ventolin Evohaler, Flixotide Evohaler, Seretide Evohaler, Symbicort Rapihaler, Flutiform Inhaler' 
   },
   { 
-    id: 'pMDI', 
-    name: 'pMDI', 
-    description: 'Pressurized Metered Dose Inhaler (정량분무흡입기)' 
+    id: 'pMDI_type2', 
+    name: 'pMDI_type2', 
+    description: 'pMDI_type2(미세입자 분무 정밀 스프레이 구조) - Alvesco Inhaler, Foster' 
   },
   { 
-    id: 'SMI', 
-    name: 'SMI', 
-    description: 'Soft Mist Inhaler (연무흡입기)' 
+    id: 'DPI_type1', 
+    name: 'DPI_type1', 
+    description: 'DPI_type1(내부 분말분산 건조분말 구조) - Anoro Ellipta, Relvar Ellipta, Incruse Ellipta, Trelegy Ellipta, Foster Nexthaler' 
+  },
+  { 
+    id: 'DPI_type2', 
+    name: 'DPI_type2', 
+    description: 'DPI_type2(레버·다이얼 건조분말 구조) - Eklira Genuair, Duaklir Genuair, Symbicort Turbuhaler, Pulmicort Turbuhaler' 
+  },
+  { 
+    id: 'DPI_type3', 
+    name: 'DPI_type3', 
+    description: 'DPI_type3(캡슐형 건조분말 구조) - Xoterna Breezhaler, Spiriva Handihaler' 
+  },
+  { 
+    id: 'SMI_type1', 
+    name: 'SMI_type1', 
+    description: 'SMI_type1(미세 안개 분사 연무흡입기 구조) - Vahelva Respimat, Spiriva Respimat' 
   }
 ];
 

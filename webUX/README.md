@@ -59,6 +59,23 @@ webUX/
 
 ## 🚀 시작하기
 
+### 사전 요구사항
+
+- **Node.js** 18.x 이상 및 npm
+- **Python** 3.x (개발 서버용)
+
+#### Node.js 설치 (Ubuntu/Debian)
+
+```bash
+# Node.js 20.x LTS 설치
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+sudo apt-get install -y nodejs
+
+# 버전 확인
+node --version  # v20.x.x
+npm --version   # 10.x.x
+```
+
 ### 1. 의존성 설치
 
 ```bash
@@ -89,6 +106,28 @@ cd /workspace/webUX && python3 -m http.server 8080
 
 ```bash
 npm run dev
+```
+
+### 5. Dev Container 사용 (권장)
+
+프로젝트 루트에 `.devcontainer/devcontainer.json` 설정이 포함되어 있습니다.
+
+**VS Code에서:**
+1. Docker가 설치되어 있는지 확인
+2. "Dev Containers" 확장 설치
+3. `Ctrl+Shift+P` → "Dev Containers: Reopen in Container" 선택
+4. 컨테이너가 자동으로 구성되며 모든 의존성이 설치됩니다
+
+**수동 설치 (컨테이너 내부):**
+```bash
+# Python 의존성
+pip install -r ../requirements.txt
+
+# Node.js 의존성
+cd webUX && npm install
+
+# TypeScript 빌드
+npm run build
 ```
 
 ## 📖 사용 방법

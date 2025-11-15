@@ -1,7 +1,7 @@
 // Analysis Types
 
 export interface DeviceType {
-  id: 'DPI' | 'pMDI' | 'SMI';
+  id: 'pMDI_type1' | 'pMDI_type2' | 'DPI_type1' | 'DPI_type2' | 'DPI_type3' | 'SMI_type1';
   name: string;
   description: string;
 }

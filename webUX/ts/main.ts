@@ -134,7 +134,6 @@ class InhalerAnalysisApp {
     
     this.analysisProgress.updateEstimatedTime(estimateAnalysisTime(duration));
     
-    let progress = 0;
     const stages = [
       { progress: 10, stage: 'VideoProcessor: 비디오 메타데이터 추출 중...', delay: 500 },
       { progress: 30, stage: 'VideoAnalyzer (gpt-4o-mini): 1차 분석 중...', delay: 2000 },

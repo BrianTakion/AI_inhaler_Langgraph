@@ -1,7 +1,5 @@
 // WebSocket Service for real-time updates
 
-import { ProgressUpdate, LogEntry } from '../types/analysis.js';
-
 export type WebSocketMessageType = 
   | 'progress'
   | 'log'

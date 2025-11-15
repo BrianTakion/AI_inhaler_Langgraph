@@ -1,32 +1,38 @@
 {
-  "name": "py312-slim (WSL minimal + Jupyter)",
-  "image": "python:3.12-slim",
-  "remoteUser": "root",
-  "workspaceFolder": "/workspace",
-  "runArgs": ["--init"],
-  "mounts": [
-    "source=${localWorkspaceFolder},target=/workspace,type=bind",
-    "source=pipcache,target=/root/.cache/pip,type=volume"
-  ],
+  "name": "흡입기 AI 진단 프로젝트",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  
   "features": {
-    "ghcr.io/devcontainers/features/git:1": {}
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
   },
-  "postCreateCommand": "bash -c 'set -eux && apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 openssh-client && rm -rf /var/lib/apt/lists/* && git config --global user.name \"${GIT_USER_NAME:-devuser}\" && git config --global user.email \"${GIT_USER_EMAIL:-dev@example.com}\" && git config --global init.defaultBranch main && python -m pip install --upgrade pip && pip install -r /workspace/requirements.txt && python -m ipykernel install --user --name=devcontainer-py312 --display-name=\"Python (devcontainer)\"'",
-  "containerEnv": {
-    "PYTHONDONTWRITEBYTECODE": "1",
-    "PYTHONUNBUFFERED": "1"
-  },
+  
   "customizations": {
     "vscode": {
       "extensions": [
-        "github.vscode-pull-request-github",
-        "eamodio.gitlens",
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "ms-toolsai.jupyter"
-      ]
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.formatting.provider": "black",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.python"
+        }
+      }
     }
   },
-  "forwardPorts": [8888],
-  "runEnvFile": ".devcontainer/.env"
+  
+  "postCreateCommand": "pip install -r requirements.txt && cd webUX && npm install",
+  
+  "forwardPorts": [8080, 8000],
+  
+  "remoteUser": "root"
 }
