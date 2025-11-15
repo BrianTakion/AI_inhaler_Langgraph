@@ -40,7 +40,7 @@ def main():
     #   llm_models = ["gpt-4o-mini", "gpt-4o-mini", "gpt-4o"] # 3개 모델 (중복 가능)
     #   llm_models = ["gpt-4o"] * 5                          # 5개 동일 모델
     
-    llm_models = ["gpt-4o-mini", "gpt-5-mini"]
+    llm_models = ["gpt-4o-mini", "gpt-5-mini", "gpt-4o-mini"]
     
     print(f"LLM 모델 초기화 ({len(llm_models)}개):")
     for idx, model_name in enumerate(llm_models):
