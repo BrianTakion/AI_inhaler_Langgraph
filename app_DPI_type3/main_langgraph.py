@@ -45,10 +45,10 @@ def main():
     #   llm_models = ["gpt-4o", "gemini-2.5-pro"]            # 2개 모델 (혼합 가능)
     #   llm_models = ["gpt-4o-mini", "gpt-4o-mini", "gpt-4o"] # 3개 모델 (중복 가능)
     #   llm_models = ["gemini-2.5-pro"] * 5                  # 5개 동일 모델
-    #   "gpt-4.1", "gpt-5-nano", "gpt-5-mini", "gpt-5.1", 
+    #   "gpt-5-nano", "gpt-4.1", "gpt-5-mini", "gpt-5.1", 
     #   "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview"
     
-    llm_models = ["gpt-4.1"]
+    llm_models = ["gemini-3-pro-preview"]
     
     print(f"LLM 모델 초기화 ({len(llm_models)}개):")
     for idx, model_name in enumerate(llm_models):

@@ -9,19 +9,19 @@ class multimodalLLM:
     
     # 지원 모델 및 기본 설정
     SUPPORTED_MODELS = {
-        # OpenAI 모델 (max_tokens = 최대 토큰, 2024-05 model card)
+        # OpenAI 모델 (context_window = 입력 제한, max_output_tokens = 출력 제한)
         # 참고: https://platform.openai.com/docs/models/gpt-4o
-        "gpt-4.1": {"max_tokens": 32_768, "supports_vision": True, "supports_video": True, "provider": "openai"},       # 공식 128k context
-        "gpt-5-nano": {"max_tokens": 400_000, "supports_vision": True, "supports_video": True, "provider": "openai"},       # 공식 128k context
-        "gpt-5-mini": {"max_tokens": 400_000, "supports_vision": True, "supports_video": True, "provider": "openai"},    # 공식 수치 미공개 → gpt-4o와 동일 가정
-        "gpt-5.1": {"max_tokens": 400_000, "supports_vision": True, "supports_video": True, "provider": "openai"},         # 공식 수치 미공개 → gpt-4o와 동일 가정
+        "gpt-4.1": {"context_window": 128_000, "max_output_tokens": 4_096, "supports_vision": True, "supports_video": True, "provider": "openai"},       # 공식 128k context
+        "gpt-5-nano": {"context_window": 128_000, "max_output_tokens": 4_096, "supports_vision": True, "supports_video": True, "provider": "openai"},       # 공식 128k context
+        "gpt-5-mini": {"context_window": 128_000, "max_output_tokens": 4_096, "supports_vision": True, "supports_video": True, "provider": "openai"},    # 공식 수치 미공개 → gpt-4o와 동일 가정
+        "gpt-5.1": {"context_window": 128_000, "max_output_tokens": 4_096, "supports_vision": True, "supports_video": True, "provider": "openai"},         # 공식 수치 미공개 → gpt-4o와 동일 가정
         
-        # Google Gemini 모델 (max_tokens = 최대 토큰, 2024-12 Gemini API docs)
+        # Google Gemini 모델 (context_window = 입력 제한, max_output_tokens = 출력 제한)
         # 참고: https://ai.google.dev/gemini-api/docs/models/gemini
-        "gemini-2.5-flash-lite": {"max_tokens": 1_000_000, "supports_vision": True, "supports_video": True, "provider": "google"}, # 최대 1M context
-        "gemini-2.5-flash": {"max_tokens": 1_000_000, "supports_vision": True, "supports_video": True, "provider": "google"}, # 최대 1M context
-        "gemini-2.5-pro": {"max_tokens": 1_000_000, "supports_vision": True, "supports_video": True, "provider": "google"},   # 최대 1M context
-        "gemini-3-pro-preview": {"max_tokens": 1_000_000, "supports_vision": True, "supports_video": True, "provider": "google"},  # 공식 수치 부재 → Pro와 동일 가정
+        "gemini-2.5-flash-lite": {"context_window": 1_000_000, "max_output_tokens": 8_192, "supports_vision": True, "supports_video": True, "provider": "google"}, # 최대 1M context
+        "gemini-2.5-flash": {"context_window": 1_000_000, "max_output_tokens": 8_192, "supports_vision": True, "supports_video": True, "provider": "google"}, # 최대 1M context
+        "gemini-2.5-pro": {"context_window": 1_000_000, "max_output_tokens": 8_192, "supports_vision": True, "supports_video": True, "provider": "google"},   # 최대 1M context
+        "gemini-3-pro-preview": {"context_window": 1_000_000, "max_output_tokens": 8_192, "supports_vision": True, "supports_video": True, "provider": "google"},  # 공식 수치 부재 → Pro와 동일 가정
     }
     
     def __init__(self, llm_name: str = "gpt-5-nano", api_key: str = None):
@@ -63,19 +63,19 @@ class multimodalLLM:
         os.replace(output_file_temp, output_file)
 
 
-    def query_answer_chatGPT(self, system_prompt, user_prompt, image_path=None, image_array=None, extract_video=10, max_tokens=None, temperature=0.0, seed=1):
+    def query_answer_chatGPT(self, system_prompt, user_prompt, image_path=None, image_array=None, extract_video=10, max_output_tokens=None, temperature=0.0, seed=1):
         # Google Gemini 모델인 경우 별도 처리
         if self.provider == "google":
-            return self._query_gemini(system_prompt, user_prompt, image_path, image_array, extract_video, max_tokens, temperature)
+            return self._query_gemini(system_prompt, user_prompt, image_path, image_array, extract_video, max_output_tokens, temperature)
         
-        # max_tokens 기본값 및 상한 클램프 (모델별 최대값 사용)
-        if max_tokens is None:
-            max_tokens = self.model_config["max_tokens"]
+        # max_output_tokens 기본값 및 상한 클램프
+        if max_output_tokens is None:
+            max_output_tokens = self.model_config["max_output_tokens"]
         else:
             # 사용자 지정 값이 모델 상한을 초과하면 상한으로 클램프
-            if max_tokens > self.model_config["max_tokens"]:
-                print(f"경고: 요청한 max_tokens({max_tokens})이 모델 한도({self.model_config['max_tokens']})를 초과하여 클램프합니다.")
-                max_tokens = self.model_config["max_tokens"]
+            if max_output_tokens > self.model_config["max_output_tokens"]:
+                print(f"경고: 요청한 max_output_tokens({max_output_tokens})이 모델 한도({self.model_config['max_output_tokens']})를 초과하여 클램프합니다.")
+                max_output_tokens = self.model_config["max_output_tokens"]
         
         # 비전/비디오 기능 지원 여부 확인
         supports_vision = self.model_config["supports_vision"]
@@ -206,16 +206,16 @@ class multimodalLLM:
             }
 
             # 모델별 토큰 파라미터 호환 처리
-            # 기본값: max_tokens (gpt-4o 계열)
-            api_params["max_tokens"] = max_tokens
+            # 기본값: max_tokens (gpt-4o 계열 등 일반 모델은 max_tokens가 출력 제한임)
+            api_params["max_tokens"] = max_output_tokens
             if self.llm_name == "gpt-5" or self.llm_name.startswith("gpt-5"):
                 # gpt-5는 max_completion_tokens를 사용, temperature/seed 미지원
                 api_params.pop("max_tokens", None)
-                api_params["max_completion_tokens"] = max_tokens
+                api_params["max_completion_tokens"] = max_output_tokens
             elif self.llm_name.startswith("o1"):
                 # o1 계열은 max_output_tokens 사용, temperature/seed 미지원
                 api_params.pop("max_tokens", None)
-                api_params["max_output_tokens"] = max_tokens
+                api_params["max_output_tokens"] = max_output_tokens
 
             # temperature 설정: gpt-5/o1은 미지원이므로 제외, 그 외 모델만 설정
             if not (self.llm_name == "gpt-5" or self.llm_name.startswith("gpt-5") or self.llm_name.startswith("o1")):
@@ -239,7 +239,7 @@ class multimodalLLM:
             
             # 구체적인 오류 메시지 제공
             if "context_length_exceeded" in error_msg.lower():
-                return f"API Error: 입력이 {self.llm_name}의 최대 토큰 제한({self.model_config['max_tokens']})을 초과했습니다."
+                return f"API Error: 입력이 {self.llm_name}의 최대 입력 토큰 제한(Context Window: {self.model_config['context_window']})을 초과했습니다."
             elif "rate_limit" in error_msg.lower():
                 return f"API Error: API 호출 한도 초과. 잠시 후 다시 시도해주세요."
             elif "model_not_found" in error_msg.lower():
@@ -247,15 +247,15 @@ class multimodalLLM:
             else:
                 return f"API Error: {error_msg}"
 
-    def _query_gemini(self, system_prompt, user_prompt, image_path=None, image_array=None, extract_video=10, max_tokens=None, temperature=0.0):
+    def _query_gemini(self, system_prompt, user_prompt, image_path=None, image_array=None, extract_video=10, max_output_tokens=None, temperature=0.0):
         """Google Gemini 모델 전용 쿼리 메서드"""
-        # max_tokens 설정
-        if max_tokens is None:
-            max_tokens = self.model_config["max_tokens"]
+        # max_output_tokens 설정
+        if max_output_tokens is None:
+            max_output_tokens = self.model_config["max_output_tokens"]
         else:
-            if max_tokens > self.model_config["max_tokens"]:
-                print(f"경고: 요청한 max_tokens({max_tokens})이 모델 한도({self.model_config['max_tokens']})를 초과하여 클램프합니다.")
-                max_tokens = self.model_config["max_tokens"]
+            if max_output_tokens > self.model_config["max_output_tokens"]:
+                print(f"경고: 요청한 max_output_tokens({max_output_tokens})이 모델 한도({self.model_config['max_output_tokens']})를 초과하여 클램프합니다.")
+                max_output_tokens = self.model_config["max_output_tokens"]
         
         # 비전/비디오 지원 확인
         supports_vision = self.model_config["supports_vision"]
@@ -354,7 +354,7 @@ class multimodalLLM:
             
             # Gemini API 호출
             generation_config = {
-                "max_output_tokens": max_tokens,
+                "max_output_tokens": max_output_tokens,
                 "temperature": temperature,
             }
             
@@ -381,7 +381,8 @@ class multimodalLLM:
         """현재 설정된 모델의 정보를 반환합니다."""
         return {
             "model_name": self.llm_name,
-            "max_tokens": self.model_config["max_tokens"],
+            "context_window": self.model_config["context_window"],
+            "max_output_tokens": self.model_config["max_output_tokens"],
             "supports_vision": self.model_config["supports_vision"],
             "supports_video": self.model_config["supports_video"],
             "provider": self.provider
@@ -471,7 +472,7 @@ if __name__ == "__main__":
             print(f"모델: {llm_name}")
             print(f"Provider: {llm.provider}")
             print(f"지원 기능: 비전={llm.model_config['supports_vision']}, 비디오={llm.model_config['supports_video']}")
-            print(f"최대 토큰: {llm.model_config['max_tokens']}")
+            print(f"입력 제한(Context): {llm.model_config['context_window']}, 출력 제한: {llm.model_config['max_output_tokens']}")
             print(f"응답: {answer[:200]}...")  # 처음 200자만 출력
             
         except Exception as e:

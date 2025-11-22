@@ -97,8 +97,7 @@ class VideoAnalyzerAgent:
                 'Q3': 'remove_cover',
                 'Q4': 'inspect_mouthpiece',
                 'Q5': 'hold_inhaler',
-                'Q6': 'exhale_before',
-                'Q7': 'seal_lips'
+                'Q6': 'exhale_before'
             }
             self.promptbank.save_to_promptbank('faceONinhaler', ref_time_face, q_answers_face, q_mapping_face)
             
@@ -269,7 +268,6 @@ Q3. {self.promptbank.check_action_step_DPI_type3['remove_cover']['action']}
 Q4. {self.promptbank.check_action_step_DPI_type3['inspect_mouthpiece']['action']}
 Q5. {self.promptbank.check_action_step_DPI_type3['hold_inhaler']['action']}
 Q6. {self.promptbank.check_action_step_DPI_type3['exhale_before']['action']}
-Q7. {self.promptbank.check_action_step_DPI_type3['seal_lips']['action']}
 
 * Judgment Criteria (apply all):
 - Treat all frames as parts of a continuous video.
@@ -289,8 +287,6 @@ Q5_Answer: [YES or NO]
 Q5_Confidence: [0.0 to 1.0, indicating your confidence level in the answer]
 Q6_Answer: [YES or NO]
 Q6_Confidence: [0.0 to 1.0, indicating your confidence level in the answer]
-Q7_Answer: [YES or NO]
-Q7_Confidence: [0.0 to 1.0, indicating your confidence level in the answer]
 """
         
         final_start_time, q_answers_acc = self._search_reference_time(

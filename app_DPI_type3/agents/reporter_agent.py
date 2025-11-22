@@ -29,7 +29,7 @@ class ReporterAgent:
     # 액션 순서 정의 (밑에서 위로)
     ACTION_ORDER = [
         'sit_stand', 'remove_cover', 'inspect_mouthpiece', 
-        'shake_inhaler', 'hold_inhaler', 'load_dose',
+        'hold_inhaler', 'load_dose',
         'exhale_before', 'seal_lips', 'inhale_deeply',
         'remove_inhaler', 'hold_breath', 'exhale_after',
         'replace_cover'
@@ -234,11 +234,138 @@ class ReporterAgent:
             "promptbank_data_avg": promptbank_data_avg
         }
     
+    def _evaluate_decisions(self, reference_times_avg: dict, promptbank_data_avg: dict) -> dict:
+        """
+        Reference Time을 기준으로 각 Action Step의 성공 여부(Decision)를 최종 판단
+        """
+        decisions = {}
+        
+        # 1. 기준 시간 추출 (없으면 -1)
+        T_in = reference_times_avg.get('inhalerIN', -1)
+        T_face = reference_times_avg.get('faceONinhaler', -1)
+        T_out = reference_times_avg.get('inhalerOUT', -1)
+        
+        # 데이터 가져오기
+        actions_data = promptbank_data_avg.get("check_action_step_DPI_type3", {})
+        
+        # 모든 키에 대해 기본값 0으로 초기화
+        all_keys = set(self.ACTION_ORDER) | set(actions_data.keys())
+        for key in all_keys:
+            decisions[key] = 0
+
+        # Helper: 특정 Action의 Time, Score 리스트 가져오기
+        def get_time_scores(action_key):
+            if action_key not in actions_data:
+                return [], []
+            data = actions_data[action_key]
+            times = data.get('time', [])
+            scores = data.get('score', [])
+            return times, scores
+
+        # Helper: 특정 구간 내의 데이터 필터링
+        def filter_in_range(times, scores, start_t, end_t):
+            filtered_scores = []
+            filtered_times = []
+            for t, s in zip(times, scores):
+                if start_t <= t <= end_t:
+                    filtered_scores.append(s)
+                    filtered_times.append(t)
+            return filtered_times, filtered_scores
+
+        # Helper: T_face 시점과 그 직전 시점 데이터 확인
+        def check_at_point_and_prev(action_key, target_time, condition='OR'):
+            times, scores = get_time_scores(action_key)
+            if not times or target_time < 0:
+                return 0
+            
+            # target_time 이하인 인덱스들 찾기
+            valid_indices = [i for i, t in enumerate(times) if t <= target_time]
+            if not valid_indices:
+                return 0
+            
+            last_idx = valid_indices[-1] # target_time 직전(포함) 가장 늦은 시간
+            
+            target_scores = [scores[last_idx]]
+            if last_idx > 0:
+                target_scores.append(scores[last_idx - 1])
+            
+            bool_scores = [s >= 0.5 for s in target_scores]
+            
+            if condition == 'AND':
+                # 데이터가 하나만 있으면 하나만으로 판단, 두 개면 둘 다 True여야 함
+                return 1 if all(bool_scores) and bool_scores else 0
+            else: # OR
+                return 1 if any(bool_scores) else 0
+
+        # --- 판단 로직 적용 ---
+        
+        # 1. T_face 시점 및 직전 시점
+        if T_face >= 0:
+            decisions['sit_stand'] = check_at_point_and_prev('sit_stand', T_face, 'AND')
+            decisions['remove_cover'] = check_at_point_and_prev('remove_cover', T_face, 'OR')
+            decisions['inspect_mouthpiece'] = check_at_point_and_prev('inspect_mouthpiece', T_face, 'OR')
+            decisions['hold_inhaler'] = check_at_point_and_prev('hold_inhaler', T_face, 'OR')
+        
+        # 2. T_in ~ T_face 구간
+        if T_in >= 0 and T_face >= 0 and T_in <= T_face:
+            for key in ['load_dose', 'exhale_before']:
+                times, scores = get_time_scores(key)
+                _, f_scores = filter_in_range(times, scores, T_in, T_face)
+                if any(s >= 0.5 for s in f_scores):
+                    decisions[key] = 1
+        
+        # 3. T_face ~ T_out 구간
+        if T_face >= 0 and T_out >= 0 and T_face <= T_out:
+            # 단순 존재 여부
+            for key in ['seal_lips', 'remove_inhaler', 'exhale_after', 'remove_capsule']:
+                times, scores = get_time_scores(key)
+                _, f_scores = filter_in_range(times, scores, T_face, T_out)
+                if any(s >= 0.5 for s in f_scores):
+                    decisions[key] = 1
+            
+            # inhale_deeply: (seal_lips and inhale_deeply)
+            id_times, id_scores = get_time_scores('inhale_deeply')
+            sl_times, sl_scores = get_time_scores('seal_lips')
+            
+            found_deeply = False
+            # inhale_deeply가 True인 시점에 seal_lips도 True인지 확인 (0.2초 오차 허용)
+            for t_id, s_id in zip(id_times, id_scores):
+                if T_face <= t_id <= T_out and s_id >= 0.5:
+                    if any(abs(t_sl - t_id) < 0.2 and s_sl >= 0.5 for t_sl, s_sl in zip(sl_times, sl_scores)):
+                         found_deeply = True
+                         break
+            if found_deeply:
+                decisions['inhale_deeply'] = 1
+
+            # hold_breath: 1sec 연속
+            hb_times, hb_scores = get_time_scores('hold_breath')
+            f_times, f_scores = filter_in_range(hb_times, hb_scores, T_face, T_out)
+            
+            consecutive_start = -1
+            max_duration = 0
+            for t, s in zip(f_times, f_scores):
+                if s >= 0.5:
+                    if consecutive_start < 0:
+                        consecutive_start = t
+                    duration = t - consecutive_start
+                    if duration > max_duration:
+                        max_duration = duration
+                else:
+                    consecutive_start = -1
+            
+            if max_duration >= 1.0:
+                decisions['hold_breath'] = 1
+                
+        return decisions
+    
     def _create_final_report(self, state: VideoAnalysisState) -> dict:
         """최종 리포트 생성 (평균값 기반)"""
         video_info = state["video_info"]
         reference_times_avg = state.get("reference_times_avg", {})
         promptbank_data_avg = state.get("promptbank_data_avg", {})
+        
+        # Action Decision 평가
+        action_decisions = self._evaluate_decisions(reference_times_avg, promptbank_data_avg)
         
         # 평균 데이터로부터 action_analysis 생성
         action_analysis = {}
@@ -269,6 +396,7 @@ class ReporterAgent:
             "video_info": video_info,
             "reference_times": reference_times_avg,
             "action_analysis": action_analysis,
+            "action_decisions": action_decisions,
             "summary": {
                 "total_actions_detected": sum(
                     1 for action in action_analysis.values() 
@@ -323,6 +451,15 @@ class ReporterAgent:
             
             # y 위치 할당 (밑에서 위로)
             y_positions = {key: i * 0.1 for i, key in enumerate(ordered_keys)}
+            
+            # Action Decision 가져오기 및 Y축 라벨 생성
+            action_decisions = state.get("final_report", {}).get("action_decisions", {})
+            y_tick_text = []
+            for key in ordered_keys:
+                if key in action_decisions:
+                    y_tick_text.append(f"{key}({action_decisions[key]})")
+                else:
+                    y_tick_text.append(key)
             
             play_time = video_info["play_time"]
             min_time, max_time = -1.0, play_time
@@ -504,7 +641,7 @@ class ReporterAgent:
                     title='event',
                     tickmode='array',
                     tickvals=list(y_positions.values()),
-                    ticktext=list(y_positions.keys()),
+                    ticktext=y_tick_text,
                     gridcolor='rgba(0,0,0,0.1)',
                     gridwidth=1
                 ),
@@ -545,6 +682,19 @@ class ReporterAgent:
         # 행동 분석
         print(f"\n[행동 분석]")
         print(f"  총 감지된 행동: {report['summary']['total_actions_detected']}개")
+        
+        if "action_decisions" in report:
+            print(f"\n[최종 판단 결과 (Decision)]")
+            for key in self.ACTION_ORDER:
+                if key in report["action_decisions"]:
+                    val = report["action_decisions"][key]
+                    result_str = "SUCCESS" if val == 1 else "FAIL"
+                    print(f"  {key}: {result_str} ({val})")
+            # ACTION_ORDER에 없는 키들도 출력
+            for key, val in report["action_decisions"].items():
+                if key not in self.ACTION_ORDER:
+                    result_str = "SUCCESS" if val == 1 else "FAIL"
+                    print(f"  {key}: {result_str} ({val})")
         
         print("\n" + "="*50)
 
