@@ -46,15 +46,13 @@
 | **inspect_mouthpiece** | `T_face` 시점 및 그 직전 시점 | 하나라도 `TRUE`이면 성공 (OR 조건) |
 | **hold_inhaler** | `T_face` 시점 및 그 직전 시점 | 하나라도 `TRUE`이면 성공 (OR 조건) |
 | **load_dose** | `T_in` ~ `T_face` 사이 | 구간 내 하나라도 `TRUE`이면 성공 |
-| **exhale_before** | `T_in` ~ `T_face` 사이 | 구간 내 하나라도 `TRUE`이면 성공 |
-| **seal_lips** | `T_face` ~ `T_out` 사이 | 구간 내 하나라도 `TRUE`이면 성공 |
-| **inhale_deeply** | `T_face` ~ `T_out` 사이 | 구간 내 (`seal_lips` **AND** `inhale_deeply`)가 하나라도 `TRUE` |
+| **exhale_before** | `T_face` 시점 및 그 직전 시점 | 하나라도 `TRUE`이면 성공 (OR 조건) |
+| **seal_lips** | `T_face` 시점 및 그 직후 시점 | 하나라도 `TRUE`이면 성공 (OR 조건) |
+| **inhale_deeply** | `T_face` 시점 및 그 직후 시점 | (`seal_lips` **AND** `inhale_deeply`)가 하나라도 `TRUE`이면 성공 |
 | **remove_inhaler** | `T_face` ~ `T_out` 사이 | 구간 내 하나라도 `TRUE`이면 성공 |
-| **hold_breath** | `T_face` ~ `T_out` 사이 | 구간 내 **1초 이상 연속**으로 `TRUE` 유지 시 성공 |
+| **hold_breath** | `T_face` ~ `T_out` 사이 | 구간 내 **2초 이상 연속**으로 `TRUE` 유지 시 성공 |
 | **exhale_after** | `T_face` ~ `T_out` 사이 | 구간 내 하나라도 `TRUE`이면 성공 |
-| **remove_capsule** | `T_face` ~ `T_out` 사이 | 구간 내 하나라도 `TRUE`이면 성공 |
-
-*(참고: `remove_capsule`은 원래 순서 상 뒤에 위치하지만, DPI Type 3의 특성에 따라 해당 구간에서 체크하도록 요청됨)*
+| **clean_inhaler** | `T_face` ~ `T_out` 사이 | 구간 내 하나라도 `TRUE`이면 성공 |
 
 ### 3.3. 시각화 업데이트
 *   산출된 Decision 결과(1 또는 0)를 Y축 라벨에 포함하여 표시합니다.

@@ -92,8 +92,8 @@ class PromptBank:
                 'score': [],
                 'confidence_score': []
             },
-            'remove_capsule': {
-                'action': 'Is the user removing the capsule? (Consider the user removing the capsule if they are manipulating and focusing on the inhaler as if trying to remove it.)', 
+            'clean_inhaler': {
+                'action': 'Is the user cleaning the inhaler? (Consider the user cleaning the inhaler if the user open the inhaler for cleaning.)', 
                 'time': [],
                 'score': [],
                 'confidence_score': []
@@ -431,8 +431,8 @@ class PromptBank:
                 'score': [],
                 'confidence_score': []
             },
-            'remove_capsule': {
-                'action': 'Is the user removing the capsule? (Consider the user removing the capsule if they are manipulating and focusing on the inhaler as if trying to remove it.)', 
+            'clean_inhaler': {
+                'action': 'Is the user cleaning the inhaler? (Consider the user cleaning the inhaler if the user open the inhaler for cleaning.)',  
                 'time': [],
                 'score': [],
                 'confidence_score': []

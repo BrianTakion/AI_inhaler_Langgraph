@@ -32,7 +32,7 @@ class ReporterAgent:
         'hold_inhaler', 'load_dose',
         'exhale_before', 'seal_lips', 'inhale_deeply',
         'remove_inhaler', 'hold_breath', 'exhale_after',
-        'replace_cover'
+        'clean_inhaler'
     ]
     
     def __init__(self):
@@ -293,7 +293,32 @@ class ReporterAgent:
             
             if condition == 'AND':
                 # 데이터가 하나만 있으면 하나만으로 판단, 두 개면 둘 다 True여야 함
-                return 1 if all(bool_scores) and bool_scores else 0
+                return 1 if all(bool_scores) else 0
+            else: # OR
+                return 1 if any(bool_scores) else 0
+
+        # Helper: T_face 시점과 그 직후 시점 데이터 확인
+        def check_at_point_and_next(action_key, target_time, condition='OR'):
+            times, scores = get_time_scores(action_key)
+            if not times or target_time < 0:
+                return 0
+            
+            # target_time 이상인 인덱스들 찾기
+            valid_indices = [i for i, t in enumerate(times) if t >= target_time]
+            if not valid_indices:
+                return 0
+            
+            first_idx = valid_indices[0] # target_time 직후(포함) 가장 빠른 시간
+            
+            target_scores = [scores[first_idx]]
+            if first_idx < len(scores) - 1:
+                target_scores.append(scores[first_idx + 1])
+            
+            bool_scores = [s >= 0.5 for s in target_scores]
+            
+            if condition == 'AND':
+                # 데이터가 하나만 있으면 하나만으로 판단, 두 개면 둘 다 True여야 함
+                return 1 if all(bool_scores) else 0
             else: # OR
                 return 1 if any(bool_scores) else 0
 
@@ -305,10 +330,11 @@ class ReporterAgent:
             decisions['remove_cover'] = check_at_point_and_prev('remove_cover', T_face, 'OR')
             decisions['inspect_mouthpiece'] = check_at_point_and_prev('inspect_mouthpiece', T_face, 'OR')
             decisions['hold_inhaler'] = check_at_point_and_prev('hold_inhaler', T_face, 'OR')
+            decisions['exhale_before'] = check_at_point_and_prev('exhale_before', T_face, 'OR')
         
         # 2. T_in ~ T_face 구간
         if T_in >= 0 and T_face >= 0 and T_in <= T_face:
-            for key in ['load_dose', 'exhale_before']:
+            for key in ['load_dose']:
                 times, scores = get_time_scores(key)
                 _, f_scores = filter_in_range(times, scores, T_in, T_face)
                 if any(s >= 0.5 for s in f_scores):
@@ -316,28 +342,57 @@ class ReporterAgent:
         
         # 3. T_face ~ T_out 구간
         if T_face >= 0 and T_out >= 0 and T_face <= T_out:
+            # T_face 시점 및 직후 시점
+            decisions['seal_lips'] = check_at_point_and_next('seal_lips', T_face, 'OR')
+            
             # 단순 존재 여부
-            for key in ['seal_lips', 'remove_inhaler', 'exhale_after', 'remove_capsule']:
+            for key in ['remove_inhaler', 'exhale_after', 'clean_inhaler']:
                 times, scores = get_time_scores(key)
                 _, f_scores = filter_in_range(times, scores, T_face, T_out)
                 if any(s >= 0.5 for s in f_scores):
                     decisions[key] = 1
             
-            # inhale_deeply: (seal_lips and inhale_deeply)
+            # inhale_deeply: T_face 시점 및 직후 시점에서 (seal_lips and inhale_deeply)
             id_times, id_scores = get_time_scores('inhale_deeply')
             sl_times, sl_scores = get_time_scores('seal_lips')
             
             found_deeply = False
-            # inhale_deeply가 True인 시점에 seal_lips도 True인지 확인 (0.2초 오차 허용)
-            for t_id, s_id in zip(id_times, id_scores):
-                if T_face <= t_id <= T_out and s_id >= 0.5:
-                    if any(abs(t_sl - t_id) < 0.2 and s_sl >= 0.5 for t_sl, s_sl in zip(sl_times, sl_scores)):
-                         found_deeply = True
-                         break
+            # inhale_deeply의 T_face 이상인 인덱스들 찾기 (직후 시점 포함)
+            id_valid_indices = [i for i, t in enumerate(id_times) if t >= T_face]
+            # seal_lips의 T_face 이상인 인덱스들 찾기 (직후 시점 포함)
+            sl_valid_indices = [i for i, t in enumerate(sl_times) if t >= T_face]
+            
+            if id_valid_indices and sl_valid_indices:
+                # T_face 직후 시점과 그 다음 시점 확인
+                id_first_idx = id_valid_indices[0]
+                id_check_indices = [id_first_idx]
+                if id_first_idx < len(id_times) - 1:
+                    id_check_indices.append(id_first_idx + 1)
+                
+                sl_first_idx = sl_valid_indices[0]
+                sl_check_indices = [sl_first_idx]
+                if sl_first_idx < len(sl_times) - 1:
+                    sl_check_indices.append(sl_first_idx + 1)
+                
+                # 같은 시점에서 둘 다 TRUE인지 확인
+                for id_idx in id_check_indices:
+                    if id_idx < len(id_scores) and id_scores[id_idx] >= 0.5:
+                        t_id = id_times[id_idx]
+                        # seal_lips도 같은 시점(또는 매우 가까운 시점)에서 True인지 확인
+                        for sl_idx in sl_check_indices:
+                            if sl_idx < len(sl_scores) and sl_scores[sl_idx] >= 0.5:
+                                t_sl = sl_times[sl_idx]
+                                # 같은 시점이거나 매우 가까운 시점(0.2초 오차)에서 둘 다 TRUE
+                                if abs(t_sl - t_id) < 0.2:
+                                    found_deeply = True
+                                    break
+                        if found_deeply:
+                            break
+            
             if found_deeply:
                 decisions['inhale_deeply'] = 1
 
-            # hold_breath: 1sec 연속
+            # hold_breath: 2sec 연속
             hb_times, hb_scores = get_time_scores('hold_breath')
             f_times, f_scores = filter_in_range(hb_times, hb_scores, T_face, T_out)
             
@@ -353,7 +408,7 @@ class ReporterAgent:
                 else:
                     consecutive_start = -1
             
-            if max_duration >= 1.0:
+            if max_duration >= 2.0:
                 decisions['hold_breath'] = 1
                 
         return decisions

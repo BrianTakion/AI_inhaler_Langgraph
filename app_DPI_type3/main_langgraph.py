@@ -48,7 +48,7 @@ def main():
     #   "gpt-5-nano", "gpt-4.1", "gpt-5-mini", "gpt-5.1", 
     #   "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-3-pro-preview"
     
-    llm_models = ["gemini-3-pro-preview"]
+    llm_models = ["gemini-2.5-pro"]
     
     print(f"LLM 모델 초기화 ({len(llm_models)}개):")
     for idx, model_name in enumerate(llm_models):

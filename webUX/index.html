@@ -1,22 +1,24 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>전남대학교 흡입기 사용 AI 진단</title>
-    
+
     <!-- CSS -->
     <link rel="stylesheet" href="css/utils/reset.css">
     <link rel="stylesheet" href="css/utils/variables.css">
     <link rel="stylesheet" href="css/components/header.css">
     <link rel="stylesheet" href="css/components/menu.css">
-    <link rel="stylesheet" href="css/components/main-section.css">
+    <link rel="stylesheet" href="css/components/main-section.css?v=4">
     <link rel="stylesheet" href="css/components/results.css">
     <link rel="stylesheet" href="css/main.css">
-    
+
     <!-- Plotly.js for visualization -->
     <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
 </head>
+
 <body>
     <!-- Header Section -->
     <header class="app-header">
@@ -33,31 +35,34 @@
         <button id="fileUpload" class="menu-btn" disabled>2. 파일</button>
         <button id="analyze" class="menu-btn" disabled>3. 분석</button>
         <button id="save" class="menu-btn" disabled>4. 저장</button>
-        
+
         <!-- Device Dropdown -->
         <div id="deviceDropdown" class="dropdown-menu" style="display: none;">
             <div class="dropdown-item" data-device-id="pMDI_type1">
-                <span class="device-name">pMDI_type1(기본 가스분사 스프레이 구조)</span>
-                <span class="device-desc">Ventolin Evohaler, Flixotide Evohaler, Seretide Evohaler, Symbicort Rapihaler, Flutiform Inhaler</span>
+                <span class="device-name">pMDI_type1(Suspension pressurized metered-dose inhaler)</span>
+                <span class="device-desc">Ventolin Evohaler, Flixotide Evohaler, Seretide Evohaler, Symbicort Rapihaler,
+                    Flutiform Inhaler</span>
             </div>
             <div class="dropdown-item" data-device-id="pMDI_type2">
-                <span class="device-name">pMDI_type2(미세입자 분무 정밀 스프레이 구조)</span>
+                <span class="device-name">pMDI_type2(Solution pressurized metered-dose inhaler)</span>
                 <span class="device-desc">Alvesco Inhaler, Foster</span>
             </div>
             <div class="dropdown-item" data-device-id="DPI_type1">
-                <span class="device-name">DPI_type1(내부 분말분산 건조분말 구조)</span>
-                <span class="device-desc">Anoro Ellipta, Relvar Ellipta, Incruse Ellipta, Trelegy Ellipta, Foster Nexthaler</span>
+                <span class="device-name">DPI_type1(Multi-dose cap-opening dry powder inhaler)</span>
+                <span class="device-desc">Anoro Ellipta, Relvar Ellipta, Incruse Ellipta, Trelegy Ellipta, Foster
+                    Nexthaler</span>
             </div>
             <div class="dropdown-item" data-device-id="DPI_type2">
-                <span class="device-name">DPI_type2(레버·다이얼 건조분말 구조)</span>
-                <span class="device-desc">Eklira Genuair, Duaklir Genuair, Symbicort Turbuhaler, Pulmicort Turbuhaler</span>
+                <span class="device-name">DPI_type2(Multi-dose rotating/button-actuated dry powder inhaler)</span>
+                <span class="device-desc">Eklira Genuair, Duaklir Genuair, Symbicort Turbuhaler, Pulmicort
+                    Turbuhaler</span>
             </div>
             <div class="dropdown-item" data-device-id="DPI_type3">
-                <span class="device-name">DPI_type3(캡슐형 건조분말 구조)</span>
+                <span class="device-name">DPI_type3(Single-dose capsule-based dry powder inhaler)</span>
                 <span class="device-desc">Xoterna Breezhaler, Spiriva Handihaler</span>
             </div>
             <div class="dropdown-item" data-device-id="SMI_type1">
-                <span class="device-name">SMI_type1(미세 안개 분사 연무흡입기 구조)</span>
+                <span class="device-name">SMI_type1(Soft mist inhaler)</span>
                 <span class="device-desc">Vahelva Respimat, Spiriva Respimat</span>
             </div>
         </div>
@@ -120,17 +125,17 @@
         <div id="analyzingState" class="state-content" style="display: none;">
             <div class="analysis-progress">
                 <h3>분석 진행 중...</h3>
-                
+
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill" style="width: 0%"></div>
                     <span class="progress-text" id="progressText">0%</span>
                 </div>
-                
+
                 <div class="current-stage">
                     <p>현재 단계: <strong id="currentStage">초기화 중...</strong></p>
                     <p>예상 소요 시간: <strong id="estimatedTime">계산 중...</strong></p>
                 </div>
-                
+
                 <div class="agent-logs">
                     <h4>처리 로그</h4>
                     <ul id="logList">
@@ -144,7 +149,7 @@
         <div id="resultsState" class="state-content" style="display: none;">
             <div class="analysis-results">
                 <h3>분석 결과</h3>
-                
+
                 <!-- Summary Section -->
                 <div class="summary-section">
                     <div class="summary-card">
@@ -155,18 +160,18 @@
                         </div>
                         <div class="score-percentage" id="scorePercentage">-%</div>
                     </div>
-                    
+
                     <div class="summary-card">
                         <h4>사용 모델</h4>
                         <p id="modelInfo">-</p>
                     </div>
-                    
+
                     <div class="summary-card">
                         <h4>분석 시간</h4>
                         <p id="analysisTime">-</p>
                     </div>
                 </div>
-                
+
                 <!-- Reference Times - Hidden as per user request -->
                 <div class="reference-times" style="display: none;">
                     <h4>기준 시점 (Reference Times)</h4>
@@ -197,7 +202,7 @@
                         </tbody>
                     </table>
                 </div>
-                
+
                 <!-- Action Steps -->
                 <div class="action-steps">
                     <h4>행동 단계 분석 (13단계)</h4>
@@ -205,7 +210,7 @@
                         <!-- Dynamically populated -->
                     </div>
                 </div>
-                
+
                 <!-- Visualization - Hidden as per user request -->
                 <div class="visualization" style="display: none;">
                     <h4>타임라인 시각화</h4>
@@ -226,7 +231,8 @@
     </main>
 
     <!-- File Input (Hidden) -->
-    <input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska" style="display: none;">
+    <input type="file" id="fileInput" accept="video/mp4,video/quicktime,video/x-msvideo,video/x-matroska"
+        style="display: none;">
 
     <!-- Modal for errors -->
     <div id="errorModal" class="modal" style="display: none;">
@@ -243,5 +249,5 @@
     <!-- TypeScript (compiled to JavaScript) -->
     <script type="module" src="dist/main.js?v=2"></script>
 </body>
-</html>
 
+</html>

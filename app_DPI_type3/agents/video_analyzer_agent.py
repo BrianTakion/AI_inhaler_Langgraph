@@ -115,7 +115,7 @@ class VideoAnalyzerAgent:
                 'Q3': 'remove_inhaler',
                 'Q4': 'hold_breath',
                 'Q5': 'exhale_after',
-                'Q6': 'remove_capsule'
+                'Q6': 'clean_inhaler'
             }
             self.promptbank.save_to_promptbank('inhalerOUT', ref_time_out, q_answers_out, q_mapping_out)
             
@@ -239,7 +239,7 @@ Q1_Confidence: [0.0 to 1.0, indicating your confidence level in the answer]
     
     def _detect_face_on_inhaler(self, video_path: str, play_time: float, start_time: float):
         """faceONinhaler 기준 시간 탐지"""
-        segment_time = 1.0
+        segment_time = 0.5
         sampling_time = segment_time / 10.0
         offset_time = segment_time
         
@@ -298,7 +298,7 @@ Q6_Confidence: [0.0 to 1.0, indicating your confidence level in the answer]
     
     def _detect_inhaler_out(self, video_path: str, play_time: float, start_time: float):
         """inhalerOUT 기준 시간 탐지"""
-        segment_time = 1.0
+        segment_time = 0.5
         sampling_time = segment_time / 10.0
         offset_time = segment_time
         
@@ -326,7 +326,7 @@ Q2. {self.promptbank.check_action_step_DPI_type3['inhale_deeply']['action']}
 Q3. {self.promptbank.check_action_step_DPI_type3['remove_inhaler']['action']}
 Q4. {self.promptbank.check_action_step_DPI_type3['hold_breath']['action']}
 Q5. {self.promptbank.check_action_step_DPI_type3['exhale_after']['action']}
-Q6. {self.promptbank.check_action_step_DPI_type3['remove_capsule']['action']}
+Q6. {self.promptbank.check_action_step_DPI_type3['clean_inhaler']['action']}
 
 * Judgment Criteria (apply all):
 - Treat all frames as parts of a continuous video.
